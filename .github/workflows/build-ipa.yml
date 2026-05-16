@@ -1,0 +1,399 @@
+name: Build Unsigned IPA
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  build-ipa:
+    runs-on: macos-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build Next.js app (static export)
+        run: npm run build
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+
+      - name: Setup Xcode project structure
+        run: |
+          mkdir -p SanaaBlast/SanaaBlast
+          mkdir -p SanaaBlast/SanaaBlast.xcodeproj
+
+      - name: Create AppDelegate.swift
+        run: |
+          cat > SanaaBlast/SanaaBlast/AppDelegate.swift << 'EOF'
+          import UIKit
+
+          @main
+          class AppDelegate: UIResponder, UIApplicationDelegate {
+              var window: UIWindow?
+
+              func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
+                  window = UIWindow(frame: UIScreen.main.bounds)
+                  window?.rootViewController = ViewController()
+                  window?.makeKeyAndVisible()
+                  return true
+              }
+          }
+          EOF
+
+      - name: Create ViewController.swift
+        run: |
+          cat > SanaaBlast/SanaaBlast/ViewController.swift << 'EOF'
+          import UIKit
+          import WebKit
+
+          class ViewController: UIViewController, WKNavigationDelegate, WKUIDelegate {
+              var webView: WKWebView!
+
+              override func loadView() {
+                  let config = WKWebViewConfiguration()
+                  config.allowsInlineMediaPlayback = true
+                  config.mediaTypesRequiringUserActionForPlayback = []
+                  webView = WKWebView(frame: .zero, configuration: config)
+                  webView.navigationDelegate = self
+                  webView.uiDelegate = self
+                  webView.scrollView.bounces = false
+                  view = webView
+              }
+
+              override func viewDidLoad() {
+                  super.viewDidLoad()
+                  let url = URL(string: "https://sanablast.vercel.app")!
+                  webView.load(URLRequest(url: url))
+              }
+
+              func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
+                  loadOfflinePage()
+              }
+
+              func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) {
+                  loadOfflinePage()
+              }
+
+              func loadOfflinePage() {
+                  let html = """
+                  <html><body style="display:flex;align-items:center;justify-content:center;height:100vh;font-family:-apple-system;background:#0f1419;color:#fff;flex-direction:column;gap:16px;margin:0">
+                  <svg width="60" height="60" viewBox="0 0 24 24" fill="#1d9bf0"><path d="M3 7h11l-1.5 4H6l-1.5 4h7.5l-1.5 4H2l1.5-4h4l1.5-4H3.5L5 7z"/></svg>
+                  <h2 style="margin:0">No Internet Connection</h2>
+                  <p style="color:#536471;margin:0">Please check your connection and try again.</p>
+                  <button onclick="window.location.reload()" style="background:#1d9bf0;color:#fff;border:none;padding:12px 24px;border-radius:24px;font-size:16px;cursor:pointer">Try Again</button>
+                  </body></html>
+                  """
+                  webView.loadHTMLString(html, baseURL: nil)
+              }
+          }
+          EOF
+
+      - name: Create Info.plist
+        run: |
+          cat > SanaaBlast/SanaaBlast/Info.plist << 'EOF'
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+              <key>CFBundleDevelopmentRegion</key>
+              <string>en</string>
+              <key>CFBundleDisplayName</key>
+              <string>Sanaa Blast</string>
+              <key>CFBundleExecutable</key>
+              <string>$(EXECUTABLE_NAME)</string>
+              <key>CFBundleIdentifier</key>
+              <string>com.sanaa.blast</string>
+              <key>CFBundleInfoDictionaryVersion</key>
+              <string>6.0</string>
+              <key>CFBundleName</key>
+              <string>SanaaBlast</string>
+              <key>CFBundlePackageType</key>
+              <string>APPL</string>
+              <key>CFBundleShortVersionString</key>
+              <string>1.0</string>
+              <key>CFBundleVersion</key>
+              <string>1</string>
+              <key>LSRequiresIPhoneOS</key>
+              <true/>
+              <key>NSAppTransportSecurity</key>
+              <dict>
+                  <key>NSAllowsArbitraryLoads</key>
+                  <true/>
+              </dict>
+              <key>UILaunchStoryboardName</key>
+              <string>LaunchScreen</string>
+              <key>UIRequiredDeviceCapabilities</key>
+              <array>
+                  <string>armv7</string>
+              </array>
+              <key>UISupportedInterfaceOrientations</key>
+              <array>
+                  <string>UIInterfaceOrientationPortrait</string>
+              </array>
+              <key>UIStatusBarStyle</key>
+              <string>UIStatusBarStyleDefault</string>
+              <key>UIViewControllerBasedStatusBarAppearance</key>
+              <false/>
+          </dict>
+          </plist>
+          EOF
+
+      - name: Create Xcode project file
+        run: |
+          cat > SanaaBlast/SanaaBlast.xcodeproj/project.pbxproj << 'PBXEOF'
+          // !$*UTF8*$!
+          {
+          	archiveVersion = 1;
+          	classes = {
+          	};
+          	objectVersion = 56;
+          	objects = {
+
+          /* Begin PBXBuildFile section */
+          		B001 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = A001 /* AppDelegate.swift */; };
+          		B002 /* ViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = A002 /* ViewController.swift */; };
+          /* End PBXBuildFile section */
+
+          /* Begin PBXFileReference section */
+          		A001 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
+          		A002 /* ViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ViewController.swift; sourceTree = "<group>"; };
+          		A003 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+          		PROD /* SanaaBlast.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = SanaaBlast.app; sourceTree = BUILT_PRODUCTS_DIR; };
+          /* End PBXFileReference section */
+
+          /* Begin PBXGroup section */
+          		MAINGRP = {
+          			isa = PBXGroup;
+          			children = (
+          				SRCGRP,
+          				PRODGRP,
+          			);
+          			sourceTree = "<group>";
+          		};
+          		SRCGRP /* SanaaBlast */ = {
+          			isa = PBXGroup;
+          			children = (
+          				A001,
+          				A002,
+          				A003,
+          			);
+          			path = SanaaBlast;
+          			sourceTree = "<group>";
+          		};
+          		PRODGRP /* Products */ = {
+          			isa = PBXGroup;
+          			children = (
+          				PROD,
+          			);
+          			name = Products;
+          			sourceTree = "<group>";
+          		};
+          /* End PBXGroup section */
+
+          /* Begin PBXNativeTarget section */
+          		TARGET /* SanaaBlast */ = {
+          			isa = PBXNativeTarget;
+          			buildConfigurationList = BUILDCFG;
+          			buildPhases = (
+          				SRCPHASE,
+          			);
+          			buildRules = (
+          			);
+          			dependencies = (
+          			);
+          			name = SanaaBlast;
+          			productName = SanaaBlast;
+          			productReference = PROD;
+          			productType = "com.apple.product-type.application";
+          		};
+          /* End PBXNativeTarget section */
+
+          /* Begin PBXProject section */
+          		PROJECT /* Project object */ = {
+          			isa = PBXProject;
+          			attributes = {
+          				BuildIndependentTargetsInParallel = 1;
+          				LastSwiftUpdateCheck = 1500;
+          				LastUpgradeCheck = 1500;
+          			};
+          			buildConfigurationList = PROJCFG;
+          			compatibilityVersion = "Xcode 14.0";
+          			developmentRegion = en;
+          			hasScannedForEncodings = 0;
+          			knownRegions = (
+          				en,
+          				Base,
+          			);
+          			mainGroup = MAINGRP;
+          			productRefGroup = PRODGRP;
+          			projectDirPath = "";
+          			projectRoot = "";
+          			targets = (
+          				TARGET,
+          			);
+          		};
+          /* End PBXProject section */
+
+          /* Begin PBXSourcesBuildPhase section */
+          		SRCPHASE /* Sources */ = {
+          			isa = PBXSourcesBuildPhase;
+          			buildActionMask = 2147483647;
+          			files = (
+          				B001,
+          				B002,
+          			);
+          			runOnlyForDeploymentPostprocessing = 0;
+          		};
+          /* End PBXSourcesBuildPhase section */
+
+          /* Begin XCBuildConfiguration section */
+          		CFG_DEBUG /* Debug */ = {
+          			isa = XCBuildConfiguration;
+          			buildSettings = {
+          				ALWAYS_SEARCH_USER_PATHS = NO;
+          				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+          				CLANG_ANALYZER_NONNULL = YES;
+          				CODE_SIGN_IDENTITY = "";
+          				CODE_SIGNING_ALLOWED = NO;
+          				CODE_SIGNING_REQUIRED = NO;
+          				ENABLE_STRICT_OBJC_MSGSEND = YES;
+          				ENABLE_TESTABILITY = YES;
+          				GCC_C_LANGUAGE_STANDARD = gnu17;
+          				IPHONEOS_DEPLOYMENT_TARGET = 14.0;
+          				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+          				MTL_FAST_MATH = YES;
+          				SDKROOT = iphoneos;
+          				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+          				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+          				SWIFT_VERSION = 5.0;
+          			};
+          			name = Debug;
+          		};
+          		CFG_RELEASE /* Release */ = {
+          			isa = XCBuildConfiguration;
+          			buildSettings = {
+          				ALWAYS_SEARCH_USER_PATHS = NO;
+          				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+          				CLANG_ANALYZER_NONNULL = YES;
+          				CODE_SIGN_IDENTITY = "";
+          				CODE_SIGNING_ALLOWED = NO;
+          				CODE_SIGNING_REQUIRED = NO;
+          				ENABLE_STRICT_OBJC_MSGSEND = YES;
+          				GCC_C_LANGUAGE_STANDARD = gnu17;
+          				IPHONEOS_DEPLOYMENT_TARGET = 14.0;
+          				MTL_FAST_MATH = YES;
+          				SDKROOT = iphoneos;
+          				SWIFT_COMPILATION_MODE = wholemodule;
+          				SWIFT_VERSION = 5.0;
+          			};
+          			name = Release;
+          		};
+          		TCFG_DEBUG /* Debug */ = {
+          			isa = XCBuildConfiguration;
+          			buildSettings = {
+          				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+          				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+          				BUNDLE_IDENTIFIER = com.sanaa.blast;
+          				CODE_SIGN_IDENTITY = "";
+          				CODE_SIGNING_ALLOWED = NO;
+          				CODE_SIGNING_REQUIRED = NO;
+          				DEVELOPMENT_TEAM = "";
+          				INFOPLIST_FILE = SanaaBlast/Info.plist;
+          				LD_RUNPATH_SEARCH_PATHS = "@executable_path/Frameworks";
+          				MARKETING_VERSION = 1.0;
+          				PRODUCT_BUNDLE_IDENTIFIER = com.sanaa.blast;
+          				PRODUCT_NAME = "$(TARGET_NAME)";
+          				SWIFT_EMIT_LOC_STRINGS = YES;
+          				SWIFT_VERSION = 5.0;
+          				TARGETED_DEVICE_FAMILY = "1,2";
+          			};
+          			name = Debug;
+          		};
+          		TCFG_RELEASE /* Release */ = {
+          			isa = XCBuildConfiguration;
+          			buildSettings = {
+          				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+          				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+          				BUNDLE_IDENTIFIER = com.sanaa.blast;
+          				CODE_SIGN_IDENTITY = "";
+          				CODE_SIGNING_ALLOWED = NO;
+          				CODE_SIGNING_REQUIRED = NO;
+          				DEVELOPMENT_TEAM = "";
+          				INFOPLIST_FILE = SanaaBlast/Info.plist;
+          				LD_RUNPATH_SEARCH_PATHS = "@executable_path/Frameworks";
+          				MARKETING_VERSION = 1.0;
+          				PRODUCT_BUNDLE_IDENTIFIER = com.sanaa.blast;
+          				PRODUCT_NAME = "$(TARGET_NAME)";
+          				SWIFT_EMIT_LOC_STRINGS = YES;
+          				SWIFT_VERSION = 5.0;
+          				TARGETED_DEVICE_FAMILY = "1,2";
+          			};
+          			name = Release;
+          		};
+          /* End XCBuildConfiguration section */
+
+          /* Begin XCConfigurationList section */
+          		PROJCFG /* Build configuration list for PBXProject "SanaaBlast" */ = {
+          			isa = XCConfigurationList;
+          			buildConfigurations = (
+          				CFG_DEBUG,
+          				CFG_RELEASE,
+          			);
+          			defaultConfigurationIsVisible = 0;
+          			defaultConfigurationName = Release;
+          		};
+          		BUILDCFG /* Build configuration list for PBXNativeTarget "SanaaBlast" */ = {
+          			isa = XCConfigurationList;
+          			buildConfigurations = (
+          				TCFG_DEBUG,
+          				TCFG_RELEASE,
+          			);
+          			defaultConfigurationIsVisible = 0;
+          			defaultConfigurationName = Release;
+          		};
+          /* End XCConfigurationList section */
+          	};
+          	rootObject = PROJECT /* Project object */;
+          }
+          PBXEOF
+
+      - name: Build unsigned IPA
+        run: |
+          cd SanaaBlast
+          xcodebuild \
+            -project SanaaBlast.xcodeproj \
+            -scheme SanaaBlast \
+            -configuration Release \
+            -sdk iphoneos \
+            -destination "generic/platform=iOS" \
+            CODE_SIGN_IDENTITY="" \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_ALLOWED=NO \
+            DEVELOPMENT_TEAM="" \
+            clean build \
+            CONFIGURATION_BUILD_DIR=./build/Release-iphoneos
+
+      - name: Package IPA
+        run: |
+          cd SanaaBlast
+          mkdir -p Payload
+          cp -r build/Release-iphoneos/SanaaBlast.app Payload/
+          zip -r SanaaBlast-unsigned.ipa Payload/
+          ls -lh SanaaBlast-unsigned.ipa
+
+      - name: Upload IPA as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: SanaaBlast-unsigned-ipa
+          path: SanaaBlast/SanaaBlast-unsigned.ipa
+          retention-days: 30
