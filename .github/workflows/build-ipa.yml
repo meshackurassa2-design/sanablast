@@ -1,4 +1,4 @@
-name: Build Unsigned IPA
+name: Build Standalone Unsigned IPA (Capacitor)
 
 on:
   push:
@@ -8,202 +8,111 @@ on:
 jobs:
   build-ipa:
     runs-on: macos-latest
+    timeout-minutes: 60
+
     steps:
-      - name: Checkout code
+      - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Create project structure
-        run: mkdir -p SanaaBlast/SanaaBlast
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
 
-      - name: Write AppDelegate.swift
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Capacitor
         run: |
-          cat > SanaaBlast/SanaaBlast/AppDelegate.swift << 'EOF'
-          import UIKit
-          @UIApplicationMain
-          class AppDelegate: UIResponder, UIApplicationDelegate {
-              var window: UIWindow?
-              func application(_ application: UIApplication,
-                               didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
-                  window = UIWindow(frame: UIScreen.main.bounds)
-                  window?.rootViewController = ViewController()
-                  window?.makeKeyAndVisible()
-                  return true
-              }
-          }
-          EOF
+          npm install @capacitor/core @capacitor/cli @capacitor/ios @capacitor/splash-screen
 
-      - name: Write ViewController.swift
+      - name: Build Next.js static export
+        run: npx next build
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+
+      - name: Verify static export
         run: |
-          cat > SanaaBlast/SanaaBlast/ViewController.swift << 'EOF'
-          import UIKit
-          import WebKit
-          class ViewController: UIViewController, WKNavigationDelegate {
-              var webView: WKWebView!
-              override func loadView() {
-                  let cfg = WKWebViewConfiguration()
-                  cfg.allowsInlineMediaPlayback = true
-                  cfg.mediaTypesRequiringUserActionForPlayback = []
-                  webView = WKWebView(frame: .zero, configuration: cfg)
-                  webView.navigationDelegate = self
-                  webView.scrollView.bounces = false
-                  view = webView
-              }
-              override func viewDidLoad() {
-                  super.viewDidLoad()
-                  webView.load(URLRequest(url: URL(string: "https://sanablast.vercel.app")!))
-              }
-              func webView(_ webView: WKWebView, didFailProvisionalNavigation _: WKNavigation!, withError _: Error) {
-                  webView.loadHTMLString("<html><body style='background:#0f1419;color:#fff;display:flex;align-items:center;justify-content:center;height:100vh;font-family:-apple-system;flex-direction:column;gap:12px'><h2>No Connection</h2><button onclick='location.reload()' style='background:#1d9bf0;color:#fff;border:none;padding:12px 28px;border-radius:24px;font-size:16px'>Retry</button></body></html>", baseURL: nil)
-              }
-          }
-          EOF
+          ls out/
+          echo "Static files: $(find out -type f | wc -l)"
 
-      - name: Write Info.plist
+      - name: Init and add iOS platform
         run: |
-          cat > SanaaBlast/SanaaBlast/Info.plist << 'EOF'
-          <?xml version="1.0" encoding="UTF-8"?>
-          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-          <plist version="1.0">
-          <dict>
-              <key>CFBundleDisplayName</key><string>Sanaa Blast</string>
-              <key>CFBundleExecutable</key><string>$(EXECUTABLE_NAME)</string>
-              <key>CFBundleIdentifier</key><string>com.sanaa.blast</string>
-              <key>CFBundleInfoDictionaryVersion</key><string>6.0</string>
-              <key>CFBundleName</key><string>SanaaBlast</string>
-              <key>CFBundlePackageType</key><string>APPL</string>
-              <key>CFBundleShortVersionString</key><string>1.0</string>
-              <key>CFBundleVersion</key><string>1</string>
-              <key>LSRequiresIPhoneOS</key><true/>
-              <key>NSAppTransportSecurity</key>
-              <dict><key>NSAllowsArbitraryLoads</key><true/></dict>
-              <key>UILaunchScreen</key><dict/>
-              <key>UIRequiredDeviceCapabilities</key>
-              <array><string>arm64</string></array>
-              <key>UISupportedInterfaceOrientations</key>
-              <array><string>UIInterfaceOrientationPortrait</string></array>
-          </dict>
-          </plist>
-          EOF
+          npx cap add ios
+          npx cap sync ios
 
-      - name: Write Xcode project file
+      - name: Show iOS project structure
+        run: find ios -name "*.xcodeproj" -o -name "*.swift" | head -20
+
+      - name: Select Xcode version
+        run: sudo xcode-select -s /Applications/Xcode_16.4.app
+
+      - name: Disable code signing
         run: |
-          mkdir -p SanaaBlast/SanaaBlast.xcodeproj
-          cat > SanaaBlast/SanaaBlast.xcodeproj/project.pbxproj << 'EOF'
-          // !$*UTF8*$!
-          {
-          	archiveVersion = 1;
-          	classes = {};
-          	objectVersion = 56;
-          	objects = {
-          		B001 /* AppDelegate.swift */ = {isa = PBXBuildFile; fileRef = A001; };
-          		B002 /* ViewController.swift */ = {isa = PBXBuildFile; fileRef = A002; };
-          		A001 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
-          		A002 /* ViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ViewController.swift; sourceTree = "<group>"; };
-          		A004 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
-          		PROD /* SanaaBlast.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = SanaaBlast.app; sourceTree = BUILT_PRODUCTS_DIR; };
-          		MAINGRP = {isa = PBXGroup; children = (SRCGRP, PRODGRP); sourceTree = "<group>"; };
-          		SRCGRP = {isa = PBXGroup; children = (A001, A002, A004); path = SanaaBlast; sourceTree = "<group>"; };
-          		PRODGRP = {isa = PBXGroup; children = (PROD); name = Products; sourceTree = "<group>"; };
-          		TARGET = {
-          			isa = PBXNativeTarget;
-          			buildConfigurationList = BUILDCFG;
-          			buildPhases = (SRCPHASE);
-          			buildRules = ();
-          			dependencies = ();
-          			name = SanaaBlast;
-          			productName = SanaaBlast;
-          			productReference = PROD;
-          			productType = "com.apple.product-type.application";
-          		};
-          		PROJECT = {
-          			isa = PBXProject;
-          			attributes = {LastSwiftUpdateCheck = 1500; LastUpgradeCheck = 1500;};
-          			buildConfigurationList = PROJCFG;
-          			compatibilityVersion = "Xcode 14.0";
-          			developmentRegion = en;
-          			hasScannedForEncodings = 0;
-          			knownRegions = (en);
-          			mainGroup = MAINGRP;
-          			productRefGroup = PRODGRP;
-          			projectDirPath = "";
-          			projectRoot = "";
-          			targets = (TARGET);
-          		};
-          		SRCPHASE = {
-          			isa = PBXSourcesBuildPhase;
-          			buildActionMask = 2147483647;
-          			files = (B001, B002);
-          			runOnlyForDeploymentPostprocessing = 0;
-          		};
-          		CFG_RELEASE = {
-          			isa = XCBuildConfiguration;
-          			buildSettings = {
-          				ALWAYS_SEARCH_USER_PATHS = NO;
-          				CODE_SIGN_IDENTITY = "";
-          				CODE_SIGNING_ALLOWED = NO;
-          				CODE_SIGNING_REQUIRED = NO;
-          				GCC_C_LANGUAGE_STANDARD = gnu17;
-          				IPHONEOS_DEPLOYMENT_TARGET = 14.0;
-          				SDKROOT = iphoneos;
-          				SWIFT_COMPILATION_MODE = wholemodule;
-          				SWIFT_VERSION = 5.0;
-          			};
-          			name = Release;
-          		};
-          		TCFG_RELEASE = {
-          			isa = XCBuildConfiguration;
-          			buildSettings = {
-          				CODE_SIGN_IDENTITY = "";
-          				CODE_SIGNING_ALLOWED = NO;
-          				CODE_SIGNING_REQUIRED = NO;
-          				DEVELOPMENT_TEAM = "";
-          				INFOPLIST_FILE = SanaaBlast/Info.plist;
-          				IPHONEOS_DEPLOYMENT_TARGET = 14.0;
-          				LD_RUNPATH_SEARCH_PATHS = "@executable_path/Frameworks";
-          				MARKETING_VERSION = 1.0;
-          				PRODUCT_BUNDLE_IDENTIFIER = com.sanaa.blast;
-          				PRODUCT_NAME = "$(TARGET_NAME)";
-          				SDKROOT = iphoneos;
-          				SWIFT_VERSION = 5.0;
-          				TARGETED_DEVICE_FAMILY = "1,2";
-          			};
-          			name = Release;
-          		};
-          		PROJCFG = {isa = XCConfigurationList; buildConfigurations = (CFG_RELEASE); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release;};
-          		BUILDCFG = {isa = XCConfigurationList; buildConfigurations = (TCFG_RELEASE); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release;};
-          	};
-          	rootObject = PROJECT;
-          }
-          EOF
+          # Find the xcodeproj
+          XCPROJ=$(find ios -name "*.xcodeproj" | head -1)
+          echo "Project: $XCPROJ"
 
-      - name: Show project structure
-        run: find SanaaBlast -type f
+          # Patch all build configurations to disable signing
+          PBXPROJ="$XCPROJ/project.pbxproj"
+          sed -i '' 's/CODE_SIGN_IDENTITY = "iPhone Developer";/CODE_SIGN_IDENTITY = "";/g' "$PBXPROJ"
+          sed -i '' 's/CODE_SIGN_IDENTITY = "Apple Development";/CODE_SIGN_IDENTITY = "";/g' "$PBXPROJ"
+          sed -i '' 's/CODE_SIGNING_REQUIRED = YES;/CODE_SIGNING_REQUIRED = NO;/g' "$PBXPROJ"
+          sed -i '' 's/DEVELOPMENT_TEAM = [A-Z0-9]*;/DEVELOPMENT_TEAM = "";/g' "$PBXPROJ"
+          
+          # Add explicit no-signing lines
+          echo "Patched signing settings"
 
-      - name: Build unsigned app
+      - name: Build unsigned IPA
         run: |
+          XCPROJ=$(find ios -name "*.xcodeproj" | head -1)
+          SCHEME=$(basename "$XCPROJ" .xcodeproj)
+          echo "Building scheme: $SCHEME from $XCPROJ"
+
           xcodebuild \
-            -project SanaaBlast/SanaaBlast.xcodeproj \
-            -target SanaaBlast \
+            -project "$XCPROJ" \
+            -scheme "$SCHEME" \
             -configuration Release \
             -sdk iphoneos \
+            -destination "generic/platform=iOS" \
             CODE_SIGN_IDENTITY="" \
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGN_ENTITLEMENTS="" \
             DEVELOPMENT_TEAM="" \
-            CONFIGURATION_BUILD_DIR="$(pwd)/build" \
-            clean build
+            -allowProvisioningUpdates \
+            CONFIGURATION_BUILD_DIR="$(pwd)/build/Release-iphoneos" \
+            clean build \
+            2>&1 | tee build.log | tail -50
 
-      - name: Package IPA
+      - name: Show build output
+        if: always()
         run: |
-          ls build/
+          ls build/Release-iphoneos/ 2>/dev/null || echo "No build output"
+          grep -E "error:|BUILD SUCCEEDED|BUILD FAILED" build.log | tail -20
+
+      - name: Package as IPA
+        run: |
+          APP=$(find build/Release-iphoneos -name "*.app" | head -1)
+          echo "App bundle: $APP"
           mkdir -p Payload
-          cp -r build/SanaaBlast.app Payload/
-          zip -r SanaaBlast-unsigned.ipa Payload/
-          echo "Done: $(du -h SanaaBlast-unsigned.ipa | cut -f1)"
+          cp -r "$APP" Payload/
+          zip -qr SanaaBlast-unsigned.ipa Payload/
+          echo "IPA size: $(du -h SanaaBlast-unsigned.ipa | cut -f1)"
 
       - name: Upload IPA
         uses: actions/upload-artifact@v4
         with:
-          name: SanaaBlast-unsigned-ipa
+          name: SanaaBlast-standalone-unsigned-ipa
           path: SanaaBlast-unsigned.ipa
           retention-days: 30
+
+      - name: Upload build log on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-log
+          path: build.log
+          retention-days: 7

@@ -1,0 +1,22 @@
+{
+  "appId": "com.sanaa.blast",
+  "appName": "Sanaa Blast",
+  "webDir": "out",
+  "bundledWebRuntime": false,
+  "ios": {
+    "scheme": "SanaaBlast",
+    "backgroundColor": "#0f1419",
+    "contentInset": "always",
+    "allowsLinkPreview": false,
+    "scrollEnabled": true
+  },
+  "plugins": {
+    "SplashScreen": {
+      "launchShowDuration": 2000,
+      "backgroundColor": "#0f1419",
+      "androidSplashResourceName": "splash",
+      "androidScaleType": "CENTER_CROP",
+      "showSpinner": false
+    }
+  }
+}
