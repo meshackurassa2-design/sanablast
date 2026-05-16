@@ -12,70 +12,55 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Create Xcode project structure
-        run: |
-          mkdir -p SanaaBlast/SanaaBlast
+      - name: Create project structure
+        run: mkdir -p SanaaBlast/SanaaBlast
 
-      - name: Create AppDelegate.swift
+      - name: Write AppDelegate.swift
         run: |
-          cat > SanaaBlast/SanaaBlast/AppDelegate.swift << 'SWIFT'
+          cat > SanaaBlast/SanaaBlast/AppDelegate.swift << 'EOF'
           import UIKit
-
           @UIApplicationMain
           class AppDelegate: UIResponder, UIApplicationDelegate {
               var window: UIWindow?
-              func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
+              func application(_ application: UIApplication,
+                               didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
                   window = UIWindow(frame: UIScreen.main.bounds)
                   window?.rootViewController = ViewController()
                   window?.makeKeyAndVisible()
                   return true
               }
           }
-          SWIFT
+          EOF
 
-      - name: Create ViewController.swift
+      - name: Write ViewController.swift
         run: |
-          cat > SanaaBlast/SanaaBlast/ViewController.swift << 'SWIFT'
+          cat > SanaaBlast/SanaaBlast/ViewController.swift << 'EOF'
           import UIKit
           import WebKit
-
           class ViewController: UIViewController, WKNavigationDelegate {
               var webView: WKWebView!
-
               override func loadView() {
-                  let config = WKWebViewConfiguration()
-                  config.allowsInlineMediaPlayback = true
-                  config.mediaTypesRequiringUserActionForPlayback = []
-                  webView = WKWebView(frame: .zero, configuration: config)
+                  let cfg = WKWebViewConfiguration()
+                  cfg.allowsInlineMediaPlayback = true
+                  cfg.mediaTypesRequiringUserActionForPlayback = []
+                  webView = WKWebView(frame: .zero, configuration: cfg)
                   webView.navigationDelegate = self
                   webView.scrollView.bounces = false
                   view = webView
               }
-
               override func viewDidLoad() {
                   super.viewDidLoad()
-                  if let url = URL(string: "https://sanablast.vercel.app") {
-                      webView.load(URLRequest(url: url))
-                  }
+                  webView.load(URLRequest(url: URL(string: "https://sanablast.vercel.app")!))
               }
-
-              func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) {
-                  let html = """
-                  <html><body style="display:flex;align-items:center;justify-content:center;height:100vh;
-                  font-family:-apple-system;background:#0f1419;color:#fff;flex-direction:column;gap:16px;margin:0">
-                  <h2>No Internet Connection</h2>
-                  <button onclick="location.reload()" style="background:#1d9bf0;color:#fff;border:none;
-                  padding:12px 28px;border-radius:24px;font-size:16px;cursor:pointer">Retry</button>
-                  </body></html>
-                  """
-                  webView.loadHTMLString(html, baseURL: nil)
+              func webView(_ webView: WKWebView, didFailProvisionalNavigation _: WKNavigation!, withError _: Error) {
+                  webView.loadHTMLString("<html><body style='background:#0f1419;color:#fff;display:flex;align-items:center;justify-content:center;height:100vh;font-family:-apple-system;flex-direction:column;gap:12px'><h2>No Connection</h2><button onclick='location.reload()' style='background:#1d9bf0;color:#fff;border:none;padding:12px 28px;border-radius:24px;font-size:16px'>Retry</button></body></html>", baseURL: nil)
               }
           }
-          SWIFT
+          EOF
 
-      - name: Create Info.plist
+      - name: Write Info.plist
         run: |
-          cat > SanaaBlast/SanaaBlast/Info.plist << 'PLIST'
+          cat > SanaaBlast/SanaaBlast/Info.plist << 'EOF'
           <?xml version="1.0" encoding="UTF-8"?>
           <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
           <plist version="1.0">
@@ -91,94 +76,38 @@ jobs:
               <key>LSRequiresIPhoneOS</key><true/>
               <key>NSAppTransportSecurity</key>
               <dict><key>NSAllowsArbitraryLoads</key><true/></dict>
-              <key>UILaunchStoryboardName</key><string>LaunchScreen</string>
+              <key>UILaunchScreen</key><dict/>
               <key>UIRequiredDeviceCapabilities</key>
               <array><string>arm64</string></array>
               <key>UISupportedInterfaceOrientations</key>
               <array><string>UIInterfaceOrientationPortrait</string></array>
           </dict>
           </plist>
-          PLIST
+          EOF
 
-      - name: Create LaunchScreen storyboard
-        run: |
-          mkdir -p SanaaBlast/SanaaBlast/Base.lproj
-          cat > SanaaBlast/SanaaBlast/Base.lproj/LaunchScreen.storyboard << 'XML'
-          <?xml version="1.0" encoding="UTF-8"?>
-          <document type="com.apple.InterfaceBuilder3.CocoaTouch.Storyboard.XIB" version="3.0" toolsVersion="21701" targetRuntime="AppleCocoa" propertyAccessControl="none" useAutolayout="YES" launchScreen="YES" useTraitCollections="YES" useSafeAreas="YES" colorMatched="YES" initialViewController="01J-lp-oVM">
-              <device id="retina6_12" orientation="portrait" appearance="light"/>
-              <scenes>
-                  <scene sceneID="EHf-IW-A2E">
-                      <objects>
-                          <viewController id="01J-lp-oVM" sceneMemberID="viewController">
-                              <view key="view" contentMode="scaleToFill" id="Ze5-6b-2t3">
-                                  <rect key="frame" x="0.0" y="0.0" width="393" height="852"/>
-                                  <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
-                                  <subviews>
-                                      <label opaque="NO" clipsSubviews="YES" userInteractionEnabled="NO" contentMode="left" horizontalHuggingPriority="251" verticalHuggingPriority="251" text="Sanaa Blast" textAlignment="center" lineBreakMode="middleTruncation" baselineAdjustment="alignBaselines" adjustsFontSizeToFit="NO" translatesAutoresizingMaskIntoConstraints="NO" id="GJd-Yh-RWb">
-                                          <rect key="frame" x="0.0" y="371" width="393" height="110"/>
-                                          <fontDescription key="fontDescription" type="boldSystem" pointSize="36"/>
-                                          <color key="textColor" red="0.11372549019607843" green="0.60784313725490196" blue="0.94117647058823528" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
-                                          <nil key="highlightedColor"/>
-                                      </label>
-                                  </subviews>
-                                  <viewLayoutGuide key="safeAreaLayoutGuide" id="Bcu-3y-fUS"/>
-                                  <color key="backgroundColor" red="0.058823529411764705" green="0.078431372549019608" blue="0.098039215686274508" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
-                                  <constraints>
-                                      <constraint firstItem="GJd-Yh-RWb" firstAttribute="centerX" secondItem="Ze5-6b-2t3" secondAttribute="centerX" id="Q3B-4y-g3c"/>
-                                      <constraint firstItem="GJd-Yh-RWb" firstAttribute="centerY" secondItem="Ze5-6b-2t3" secondAttribute="centerY" id="moa-c2-u7t"/>
-                                      <constraint firstItem="GJd-Yh-RWb" firstAttribute="leading" secondItem="Ze5-6b-2t3" secondAttribute="leading" id="Ety-1F-D3V"/>
-                                      <constraint firstItem="GJd-Yh-RWb" firstAttribute="trailing" secondItem="Ze5-6b-2t3" secondAttribute="trailing" id="Koa-8k-fBQ"/>
-                                  </constraints>
-                              </view>
-                          </viewController>
-                          <placeholder placeholderIdentifier="IBFirstResponder" id="iYj-Kq-Ea1" userLabel="First Responder" sceneMemberID="firstResponder"/>
-                      </objects>
-                      <point key="canvasLocation" x="53" y="375"/>
-                  </scene>
-              </scenes>
-          </document>
-          XML
-
-      - name: Create Xcode project file
+      - name: Write Xcode project file
         run: |
           mkdir -p SanaaBlast/SanaaBlast.xcodeproj
-          cat > SanaaBlast/SanaaBlast.xcodeproj/project.pbxproj << 'PBXEOF'
+          cat > SanaaBlast/SanaaBlast.xcodeproj/project.pbxproj << 'EOF'
           // !$*UTF8*$!
           {
           	archiveVersion = 1;
           	classes = {};
           	objectVersion = 56;
           	objects = {
-          		B001 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = A001; };
-          		B002 /* ViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = A002; };
-          		B003 /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = A003; };
+          		B001 /* AppDelegate.swift */ = {isa = PBXBuildFile; fileRef = A001; };
+          		B002 /* ViewController.swift */ = {isa = PBXBuildFile; fileRef = A002; };
           		A001 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
           		A002 /* ViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ViewController.swift; sourceTree = "<group>"; };
-          		A003 /* LaunchScreen.storyboard */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; path = LaunchScreen.storyboard; sourceTree = "<group>"; };
           		A004 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
           		PROD /* SanaaBlast.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = SanaaBlast.app; sourceTree = BUILT_PRODUCTS_DIR; };
-          		MAINGRP = {
-          			isa = PBXGroup;
-          			children = (SRCGRP, PRODGRP);
-          			sourceTree = "<group>";
-          		};
-          		SRCGRP = {
-          			isa = PBXGroup;
-          			children = (A001, A002, A003, A004);
-          			path = SanaaBlast;
-          			sourceTree = "<group>";
-          		};
-          		PRODGRP = {
-          			isa = PBXGroup;
-          			children = (PROD);
-          			name = Products;
-          			sourceTree = "<group>";
-          		};
+          		MAINGRP = {isa = PBXGroup; children = (SRCGRP, PRODGRP); sourceTree = "<group>"; };
+          		SRCGRP = {isa = PBXGroup; children = (A001, A002, A004); path = SanaaBlast; sourceTree = "<group>"; };
+          		PRODGRP = {isa = PBXGroup; children = (PROD); name = Products; sourceTree = "<group>"; };
           		TARGET = {
           			isa = PBXNativeTarget;
           			buildConfigurationList = BUILDCFG;
-          			buildPhases = (SRCPHASE, RESPHASE);
+          			buildPhases = (SRCPHASE);
           			buildRules = ();
           			dependencies = ();
           			name = SanaaBlast;
@@ -188,12 +117,12 @@ jobs:
           		};
           		PROJECT = {
           			isa = PBXProject;
-          			attributes = { LastSwiftUpdateCheck = 1500; LastUpgradeCheck = 1500; };
+          			attributes = {LastSwiftUpdateCheck = 1500; LastUpgradeCheck = 1500;};
           			buildConfigurationList = PROJCFG;
           			compatibilityVersion = "Xcode 14.0";
           			developmentRegion = en;
           			hasScannedForEncodings = 0;
-          			knownRegions = (en, Base);
+          			knownRegions = (en);
           			mainGroup = MAINGRP;
           			productRefGroup = PRODGRP;
           			projectDirPath = "";
@@ -206,12 +135,6 @@ jobs:
           			files = (B001, B002);
           			runOnlyForDeploymentPostprocessing = 0;
           		};
-          		RESPHASE = {
-          			isa = PBXResourcesBuildPhase;
-          			buildActionMask = 2147483647;
-          			files = (B003);
-          			runOnlyForDeploymentPostprocessing = 0;
-          		};
           		CFG_RELEASE = {
           			isa = XCBuildConfiguration;
           			buildSettings = {
@@ -219,10 +142,8 @@ jobs:
           				CODE_SIGN_IDENTITY = "";
           				CODE_SIGNING_ALLOWED = NO;
           				CODE_SIGNING_REQUIRED = NO;
-          				ENABLE_STRICT_OBJC_MSGSEND = YES;
           				GCC_C_LANGUAGE_STANDARD = gnu17;
           				IPHONEOS_DEPLOYMENT_TARGET = 14.0;
-          				MTL_FAST_MATH = YES;
           				SDKROOT = iphoneos;
           				SWIFT_COMPILATION_MODE = wholemodule;
           				SWIFT_VERSION = 5.0;
@@ -232,51 +153,39 @@ jobs:
           		TCFG_RELEASE = {
           			isa = XCBuildConfiguration;
           			buildSettings = {
-          				BUNDLE_IDENTIFIER = com.sanaa.blast;
           				CODE_SIGN_IDENTITY = "";
           				CODE_SIGNING_ALLOWED = NO;
           				CODE_SIGNING_REQUIRED = NO;
           				DEVELOPMENT_TEAM = "";
           				INFOPLIST_FILE = SanaaBlast/Info.plist;
+          				IPHONEOS_DEPLOYMENT_TARGET = 14.0;
           				LD_RUNPATH_SEARCH_PATHS = "@executable_path/Frameworks";
           				MARKETING_VERSION = 1.0;
           				PRODUCT_BUNDLE_IDENTIFIER = com.sanaa.blast;
           				PRODUCT_NAME = "$(TARGET_NAME)";
-          				SWIFT_EMIT_LOC_STRINGS = YES;
+          				SDKROOT = iphoneos;
           				SWIFT_VERSION = 5.0;
           				TARGETED_DEVICE_FAMILY = "1,2";
           			};
           			name = Release;
           		};
-          		PROJCFG = {
-          			isa = XCConfigurationList;
-          			buildConfigurations = (CFG_RELEASE);
-          			defaultConfigurationIsVisible = 0;
-          			defaultConfigurationName = Release;
-          		};
-          		BUILDCFG = {
-          			isa = XCConfigurationList;
-          			buildConfigurations = (TCFG_RELEASE);
-          			defaultConfigurationIsVisible = 0;
-          			defaultConfigurationName = Release;
-          		};
+          		PROJCFG = {isa = XCConfigurationList; buildConfigurations = (CFG_RELEASE); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release;};
+          		BUILDCFG = {isa = XCConfigurationList; buildConfigurations = (TCFG_RELEASE); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release;};
           	};
           	rootObject = PROJECT;
           }
-          PBXEOF
+          EOF
 
-      - name: List Xcode SDKs
-        run: xcodebuild -showsdks
+      - name: Show project structure
+        run: find SanaaBlast -type f
 
-      - name: Build unsigned IPA
+      - name: Build unsigned app
         run: |
-          cd SanaaBlast
           xcodebuild \
-            -project SanaaBlast.xcodeproj \
+            -project SanaaBlast/SanaaBlast.xcodeproj \
             -target SanaaBlast \
             -configuration Release \
             -sdk iphoneos \
-            -destination "generic/platform=iOS" \
             CODE_SIGN_IDENTITY="" \
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGNING_ALLOWED=NO \
@@ -286,13 +195,13 @@ jobs:
 
       - name: Package IPA
         run: |
-          ls SanaaBlast/build/
+          ls build/
           mkdir -p Payload
-          cp -r SanaaBlast/build/SanaaBlast.app Payload/
+          cp -r build/SanaaBlast.app Payload/
           zip -r SanaaBlast-unsigned.ipa Payload/
-          echo "IPA size: $(du -h SanaaBlast-unsigned.ipa | cut -f1)"
+          echo "Done: $(du -h SanaaBlast-unsigned.ipa | cut -f1)"
 
-      - name: Upload IPA artifact
+      - name: Upload IPA
         uses: actions/upload-artifact@v4
         with:
           name: SanaaBlast-unsigned-ipa
