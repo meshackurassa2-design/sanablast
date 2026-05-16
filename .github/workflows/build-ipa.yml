@@ -1,4 +1,4 @@
-name: Build Standalone Unsigned IPA (Capacitor)
+name: Build Standalone IPA
 
 on:
   push:
@@ -11,65 +11,34 @@ jobs:
     timeout-minutes: 60
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Setup Node.js 20
-        uses: actions/setup-node@v4
+      - uses: actions/setup-node@v4
         with:
           node-version: '20'
           cache: 'npm'
 
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Install Capacitor
+      - name: Install deps + Capacitor
         run: |
-          npm install @capacitor/core @capacitor/cli @capacitor/ios @capacitor/splash-screen
+          npm ci
+          npm install @capacitor/core @capacitor/cli @capacitor/ios
 
-      - name: Build Next.js static export
+      - name: Build static export
         run: npx next build
         env:
-          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
-          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+          NEXT_PUBLIC_SUPABASE_URL: https://xhegpgkyivzzdrqjwzoz.supabase.co
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhoZWdwZ2t5aXZ6emRycWp3em96Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg4NzMyOTksImV4cCI6MjA5NDQ0OTI5OX0.WGYsGA4_vXrRP_Cl5oLrd2dZ5hcppOQVUszh0KvwW10
 
-      - name: Verify static export
-        run: |
-          ls out/
-          echo "Static files: $(find out -type f | wc -l)"
-
-      - name: Init and add iOS platform
+      - name: Capacitor - add and sync iOS
         run: |
           npx cap add ios
           npx cap sync ios
-
-      - name: Show iOS project structure
-        run: find ios -name "*.xcodeproj" -o -name "*.swift" | head -20
-
-      - name: Select Xcode version
-        run: sudo xcode-select -s /Applications/Xcode_16.4.app
-
-      - name: Disable code signing
-        run: |
-          # Find the xcodeproj
-          XCPROJ=$(find ios -name "*.xcodeproj" | head -1)
-          echo "Project: $XCPROJ"
-
-          # Patch all build configurations to disable signing
-          PBXPROJ="$XCPROJ/project.pbxproj"
-          sed -i '' 's/CODE_SIGN_IDENTITY = "iPhone Developer";/CODE_SIGN_IDENTITY = "";/g' "$PBXPROJ"
-          sed -i '' 's/CODE_SIGN_IDENTITY = "Apple Development";/CODE_SIGN_IDENTITY = "";/g' "$PBXPROJ"
-          sed -i '' 's/CODE_SIGNING_REQUIRED = YES;/CODE_SIGNING_REQUIRED = NO;/g' "$PBXPROJ"
-          sed -i '' 's/DEVELOPMENT_TEAM = [A-Z0-9]*;/DEVELOPMENT_TEAM = "";/g' "$PBXPROJ"
-          
-          # Add explicit no-signing lines
-          echo "Patched signing settings"
 
       - name: Build unsigned IPA
         run: |
           XCPROJ=$(find ios -name "*.xcodeproj" | head -1)
           SCHEME=$(basename "$XCPROJ" .xcodeproj)
-          echo "Building scheme: $SCHEME from $XCPROJ"
+          echo "Project: $XCPROJ | Scheme: $SCHEME"
 
           xcodebuild \
             -project "$XCPROJ" \
@@ -80,39 +49,22 @@ jobs:
             CODE_SIGN_IDENTITY="" \
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGNING_ALLOWED=NO \
-            CODE_SIGN_ENTITLEMENTS="" \
             DEVELOPMENT_TEAM="" \
-            -allowProvisioningUpdates \
-            CONFIGURATION_BUILD_DIR="$(pwd)/build/Release-iphoneos" \
-            clean build \
-            2>&1 | tee build.log | tail -50
+            CONFIGURATION_BUILD_DIR="$(pwd)/build" \
+            clean build
 
-      - name: Show build output
-        if: always()
+      - name: Package IPA
         run: |
-          ls build/Release-iphoneos/ 2>/dev/null || echo "No build output"
-          grep -E "error:|BUILD SUCCEEDED|BUILD FAILED" build.log | tail -20
-
-      - name: Package as IPA
-        run: |
-          APP=$(find build/Release-iphoneos -name "*.app" | head -1)
-          echo "App bundle: $APP"
-          mkdir -p Payload
+          APP=$(find build -name "*.app" | head -1)
+          echo "Packaging: $APP"
+          mkdir Payload
           cp -r "$APP" Payload/
           zip -qr SanaaBlast-unsigned.ipa Payload/
-          echo "IPA size: $(du -h SanaaBlast-unsigned.ipa | cut -f1)"
+          echo "Size: $(du -h SanaaBlast-unsigned.ipa | cut -f1)"
 
       - name: Upload IPA
         uses: actions/upload-artifact@v4
         with:
-          name: SanaaBlast-standalone-unsigned-ipa
+          name: SanaaBlast-unsigned-ipa
           path: SanaaBlast-unsigned.ipa
           retention-days: 30
-
-      - name: Upload build log on failure
-        if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: build-log
-          path: build.log
-          retention-days: 7
