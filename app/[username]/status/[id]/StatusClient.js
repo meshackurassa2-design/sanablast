@@ -7,6 +7,7 @@ import Sidebar from '@/components/Sidebar';
 import MobileNav from '@/components/MobileNav';
 import TrendsSidebar from '@/components/TrendsSidebar';
 import Link from 'next/link';
+import { FeedSkeleton } from '@/components/Loaders';
 
 export default function StatusClient() {
   const { username, id } = useParams();
@@ -49,7 +50,7 @@ export default function StatusClient() {
       const userIds = [...new Set(allBlasts.map(b => b.user_id).filter(Boolean))];
       const blastIds = allBlasts.map(b => b.id);
       const [profilesRes, likesRes, repostsRes] = await Promise.all([
-        supabase.from('profiles').select('id, username, full_name, avatar_url, talent, is_verified').in('id', userIds),
+        supabase.from('profiles').select('id, username, full_name, avatar_url').in('id', userIds),
         supabase.from('likes').select('id, blast_id, user_id').in('blast_id', blastIds),
         supabase.from('reposts').select('id, blast_id, user_id').in('blast_id', blastIds),
       ]);
@@ -108,7 +109,13 @@ export default function StatusClient() {
     return <svg width="16" height="16" viewBox="0 0 24 24" fill="#1d9bf0" style={{ marginLeft:'4px' }}><path d="M22.5 12.5c0-1.58-.875-2.95-2.148-3.6.154-.435.238-.905.238-1.4 0-2.21-1.79-4-4-4-.73 0-1.41.192-2 .524C13.9 2.5 12.5 1.5 11 1.5s-2.9 1-3.59 2.524C6.82 3.69 6.14 3.5 5.41 3.5c-2.21 0-4 1.79-4 4 0 .495.084.965.238 1.4-1.273.65-2.148 2.02-2.148 3.6 0 1.46.732 2.75 1.83 3.444C1.18 16.48 1.1 16.98 1.1 17.5c0 2.21 1.79 4 4 4 .9 0 1.73-.306 2.4-.82.97.98 2.3 1.57 3.75 1.57s2.78-.59 3.75-1.57c.67.514 1.5.82 2.4.82 2.21 0 4-1.79 4-4 0-.52-.08-1.02-.22-1.556 1.098-.694 1.83-1.984 1.83-3.444zm-11 5.5l-4-4 1.41-1.41 2.59 2.58 6.59-6.59 1.41 1.41-8 8z"/></svg>;
   };
 
-  if (loading) return <div style={{ minHeight:'100vh', display:'flex', alignItems:'center', justifyContent:'center', color:'#536471' }}>Loading...</div>;
+  if (loading) return (
+    <div className="layout">
+      <Sidebar user={user} />
+      <main className="feed"><FeedSkeleton count={3} /></main>
+      <div className="right-sidebar"><TrendsSidebar /></div>
+    </div>
+  );
   if (!blast) return <div style={{ minHeight:'100vh', padding:'20px', color:'#0f1419' }}>Post not found</div>;
 
   const authorName = blast.profiles?.full_name || blast.profiles?.username || (blast.user_id===user?.id ? fullName : 'User');

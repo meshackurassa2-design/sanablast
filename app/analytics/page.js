@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import Sidebar from '@/components/Sidebar';
 import MobileNav from '@/components/MobileNav';
+import { FeedSkeleton } from '@/components/Loaders';
 
 export default function AnalyticsPage() {
   const router = useRouter();
@@ -117,7 +118,13 @@ export default function AnalyticsPage() {
           </div>
 
           {loading ? (
-            <div style={{ textAlign: 'center', color: '#536471', marginTop: '60px', fontSize: '1rem' }}>Loading analytics...</div>
+              <div style={{ marginTop: '20px' }}>
+                <FeedSkeleton count={6} />
+              </div>
+            ) : blasts.length === 0 ? (
+            <div style={{ color: '#536471', textAlign: 'center', padding: '40px 20px', background: '#ffffff', borderRadius: '16px', border: '1px solid #e7ecef' }}>
+              No posts in this timeframe yet.
+            </div>
           ) : (
             <>
               {/* 2-col: Blasts + Views */}

@@ -6,6 +6,7 @@ import Sidebar from '@/components/Sidebar';
 import MobileNav from '@/components/MobileNav';
 import TrendsSidebar from '@/components/TrendsSidebar';
 import Link from 'next/link';
+import { FeedSkeleton } from '@/components/Loaders';
 
 export default function Home() {
   // ── ALL HOOKS AT TOP (React rules) ──
@@ -145,7 +146,7 @@ export default function Home() {
       const blastIds = bData.map(b => b.id);
 
       const [profilesRes, likesRes, repostsRes] = await Promise.all([
-        supabase.from('profiles').select('id, username, full_name, avatar_url, talent, is_verified').in('id', userIds),
+        supabase.from('profiles').select('id, username, full_name, avatar_url').in('id', userIds),
         supabase.from('likes').select('id, blast_id, user_id').in('blast_id', blastIds),
         supabase.from('reposts').select('id, blast_id, user_id').in('blast_id', blastIds),
       ]);
@@ -473,7 +474,7 @@ export default function Home() {
 
         {/* Feed */}
         {loading ? (
-          <div style={{ padding: '30px', textAlign: 'center', color: '#0f1419' }}>Loading blasts...</div>
+          <FeedSkeleton count={6} />
         ) : blasts.map(blast => (
           <div key={blast.id} className="blast-card" onClick={() => { incrementView(blast.id); window.location.href = `/${blast.profiles?.username || (blast.user_id === user?.id ? username : 'user')}/status/${blast.id}`; }}>
             <Avatar src={blast.profiles?.avatar_url || (blast.user_id === user?.id ? avatarUrl : null)} name={blast.profiles?.full_name || blast.profiles?.username || (blast.user_id === user?.id ? fullName : 'User')} size={40} onClick={(e) => { e.stopPropagation(); window.location.href = `/${blast.profiles?.username || (blast.user_id === user?.id ? username : 'user')}`; }} />

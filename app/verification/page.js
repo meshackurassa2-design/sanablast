@@ -4,6 +4,7 @@ import { supabase } from '@/lib/supabase';
 import Sidebar from '@/components/Sidebar';
 import MobileNav from '@/components/MobileNav';
 import Link from 'next/link';
+import { FeedSkeleton } from '@/components/Loaders';
 
 export default function VerificationPage() {
   const [user, setUser] = useState(null);
@@ -82,8 +83,10 @@ export default function VerificationPage() {
   if (loading) return (
     <div className="layout">
       <Sidebar />
-      <main className="feed" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <h2 style={{ color: '#0f1419' }}>Loading...</h2>
+      <main className="feed">
+        <div style={{ marginTop: '20px' }}>
+          <FeedSkeleton count={6} />
+        </div>
       </main>
       <MobileNav />
     </div>

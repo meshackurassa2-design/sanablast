@@ -37,7 +37,7 @@ export default function TrendsSidebar() {
       if (c) setSuggestedUsers(JSON.parse(c));
     } catch(_) {}
     try {
-      let query = supabase.from('profiles').select('id, username, full_name, avatar_url, talent, is_verified').limit(10);
+      let query = supabase.from('profiles').select('id, username, full_name, avatar_url').limit(10);
       const { data, error } = await query;
       if (!error && data) {
         let filtered = data;
@@ -75,7 +75,7 @@ export default function TrendsSidebar() {
 
       // Step 2: fetch profiles + engagement in parallel
       const [profilesRes, likesRes, repostsRes] = await Promise.all([
-        supabase.from('profiles').select('id, username, full_name, avatar_url, talent, is_verified').in('id', userIds),
+        supabase.from('profiles').select('id, username, full_name, avatar_url').in('id', userIds),
         supabase.from('likes').select('id, blast_id').in('blast_id', blastIds),
         supabase.from('reposts').select('id, blast_id').in('blast_id', blastIds),
       ]);

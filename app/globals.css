@@ -97,6 +97,8 @@ html, body {
   background-color: #ffffff !important;
 }
 
+
+
 .feed-header {
   position: sticky;
   top: 0;
@@ -558,4 +560,21 @@ html, body {
     max-width: none;
     border-radius: 0;
   }
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -1000px 0;
+  }
+  100% {
+    background-position: 1000px 0;
+  }
+}
+
+.skeleton-loader {
+  background: #f0f3f5;
+  background-image: linear-gradient(to right, #f0f3f5 0%, #ffffff 20%, #f0f3f5 40%, #f0f3f5 100%);
+  background-repeat: no-repeat;
+  background-size: 1000px 100%;
+  animation: shimmer 1.5s infinite linear forwards;
 }

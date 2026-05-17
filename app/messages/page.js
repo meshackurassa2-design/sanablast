@@ -1,8 +1,9 @@
 'use client';
 import { useState, useEffect, useRef } from 'react';
-import { supabase } from '@/lib/supabase';
+import { supabase, supabaseService } from '@/lib/supabase';
 import Sidebar from '@/components/Sidebar';
 import MobileNav from '@/components/MobileNav';
+import { FeedSkeleton, MessageSkeleton } from '@/components/Loaders';
 
 /* ── Verification Badge ── */
 const VerificationBadge = ({ talent, isVerified }) => {
@@ -141,7 +142,7 @@ export default function MessagesPage() {
     const text = draft.trim();
     setDraft('');
     setSending(true);
-    const { data: newMsg, error } = await supabase.from('messages')
+    const { data: newMsg, error } = await supabaseService.from('messages')
       .insert([{ sender_id: user.id, receiver_id: chatUser.id, content: text }])
       .select().single();
     if (error) {
@@ -166,19 +167,27 @@ export default function MessagesPage() {
   return (
     <div className="layout">
       <Sidebar user={user} />
-      <main className="feed" style={{ display: 'flex', flexDirection: 'column', height: '100dvh', overflow: 'hidden' }}>
+      <main className="feed" style={{ display: 'flex', flexDirection: 'column', height: '100dvh', overflow: 'hidden', paddingBottom: view === 'chat' ? 0 : undefined }}>
 
         {/* ── HEADER ── */}
-        <header style={{ display: 'flex', alignItems: 'center', padding: '14px 20px', gap: '12px', borderBottom: '1px solid var(--border)', flexShrink: 0 }}>
+        <header style={{ display: 'flex', alignItems: 'center', padding: '12px 20px', gap: '12px', borderBottom: '1px solid var(--border)', flexShrink: 0 }}>
           {view === 'chat' ? (
-            <>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', width: '100%' }}>
               <button onClick={() => { setView('list'); setChatUser(null); setMessages([]); }}
-                style={{ background: 'none', border: 'none', fontSize: '1.4rem', cursor: 'pointer', color: '#0f1419', lineHeight: 1 }}>←</button>
-              <Avatar user={chatUser} size={36} />
-              <span style={{ fontWeight: 800, color: '#0f1419', display: 'flex', alignItems: 'center', fontSize: '1.05rem' }}>
-                {chatUser.full_name || chatUser.username}
-              </span>
-            </>
+                style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#0f1419', padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+              </button>
+              <Avatar user={chatUser} size={38} />
+              <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+                <span style={{ fontWeight: 850, color: '#0f1419', fontSize: '1.02rem', lineHeight: 1.2, display: 'flex', alignItems: 'center' }}>
+                  {chatUser.full_name || chatUser.username}
+                  <VerificationBadge talent={chatUser.talent} isVerified={chatUser.is_verified} />
+                </span>
+                <span style={{ color: '#536471', fontSize: '0.78rem', fontWeight: 400, marginTop: '1px' }}>
+                  @{chatUser.username}
+                </span>
+              </div>
+            </div>
           ) : (
             <>
               <h2 style={{ margin: 0, flex: 1, fontSize: '1.2rem', fontWeight: 800, color: '#0f1419' }}>Messages</h2>
@@ -203,7 +212,7 @@ export default function MessagesPage() {
               </div>
             </div>
 
-            {loading && <p style={{ textAlign: 'center', color: '#536471', padding: '20px' }}>Loading…</p>}
+            {loading && <MessageSkeleton count={6} />}
             {!loading && threads.length === 0 && (
               <div style={{ textAlign: 'center', padding: '48px 24px', color: '#536471' }}>
                 <h3 style={{ color: '#0f1419', margin: '0 0 8px' }}>No messages yet</h3>
@@ -265,56 +274,144 @@ export default function MessagesPage() {
         {/* ── CHAT ── */}
         {view === 'chat' && (
           <>
-            <div style={{ flex: 1, overflowY: 'auto', padding: '16px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              {messages.length === 0 && (
-                <p style={{ textAlign: 'center', color: '#536471', marginTop: '40px' }}>
-                  Say hi to {chatUser.full_name || chatUser.username}! 👋
-                </p>
-              )}
+            <div style={{ flex: 1, overflowY: 'auto', padding: '16px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              
+              {/* Profile Intro Card */}
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '24px 16px', borderBottom: '1px solid var(--border)', marginBottom: '16px', textAlign: 'center' }}>
+                <Avatar user={chatUser} size={80} />
+                <h3 style={{ margin: '12px 0 2px', fontSize: '1.2rem', fontWeight: 900, color: '#0f1419' }}>
+                  {chatUser.full_name || chatUser.username}
+                </h3>
+                <span style={{ color: '#536471', fontSize: '0.92rem' }}>@{chatUser.username}</span>
+                <span style={{ color: '#536471', fontSize: '0.85rem', marginTop: '6px' }}>
+                  Joined {chatUser.created_at ? new Date(chatUser.created_at).toLocaleDateString(undefined, { month: 'long', year: 'numeric' }) : 'March 2026'}
+                </span>
+                <button onClick={() => window.location.href = `/${chatUser.username}`}
+                  style={{ marginTop: '14px', border: '1px solid #cfd9de', borderRadius: '20px', background: '#fff', color: '#0f1419', padding: '6px 18px', fontWeight: '700', fontSize: '0.88rem', cursor: 'pointer' }}>
+                  View Profile
+                </button>
+              </div>
+
               {messages.map((msg, i) => {
                 const mine = msg.sender_id === user.id;
+                const timeStr = msg.created_at 
+                  ? new Date(msg.created_at).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', hour12: false })
+                  : new Date().toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', hour12: false });
+                
                 return (
                   <div key={msg.id || i} style={{
                     alignSelf: mine ? 'flex-end' : 'flex-start',
                     background: mine ? '#1d9bf0' : '#eff3f4',
                     color: mine ? '#fff' : '#0f1419',
-                    padding: '10px 16px',
-                    borderRadius: mine ? '20px 20px 4px 20px' : '20px 20px 20px 4px',
-                    maxWidth: '75%', wordBreak: 'break-word', fontSize: '0.97rem', lineHeight: 1.4,
+                    padding: '8px 14px 6px 14px',
+                    borderRadius: mine ? '18px 18px 4px 18px' : '18px 18px 18px 4px',
+                    maxWidth: '75%',
+                    wordBreak: 'break-word',
+                    fontSize: '0.97rem',
+                    lineHeight: 1.4,
+                    display: 'flex',
+                    flexDirection: 'column',
+                    position: 'relative',
+                    boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
                   }}>
-                    {msg.content}
+                    <span style={{ marginRight: mine ? '48px' : '36px' }}>{msg.content}</span>
+                    <span style={{
+                      alignSelf: 'flex-end',
+                      fontSize: '0.70rem',
+                      color: mine ? 'rgba(255,255,255,0.72)' : '#536471',
+                      marginTop: '2px',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '3px',
+                      marginLeft: 'auto'
+                    }}>
+                      {timeStr}
+                      {mine && (
+                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" style={{ opacity: 0.95, verticalAlign: 'middle' }}>
+                          <polyline points="20 6 9 17 4 12"/>
+                        </svg>
+                      )}
+                    </span>
                   </div>
                 );
               })}
               <div ref={endRef} />
             </div>
 
-            {/* Input */}
-            <div style={{ padding: '12px 16px', borderTop: '1px solid var(--border)', display: 'flex', gap: '10px', alignItems: 'center', background: '#fff', flexShrink: 0 }}>
-              <input
-                type="text"
-                placeholder={`Message ${chatUser.full_name || chatUser.username}…`}
-                value={draft}
-                onChange={e => setDraft(e.target.value)}
-                onKeyDown={e => e.key === 'Enter' && !e.shiftKey && sendMessage()}
-                style={{ flex: 1, background: '#eff3f4', border: 'none', borderRadius: '30px', padding: '12px 18px', outline: 'none', fontSize: '1rem', color: '#0f1419' }}
-              />
-              <button onClick={sendMessage} disabled={!draft.trim() || sending}
-                style={{
-                  background: draft.trim() && !sending ? '#1d9bf0' : '#eff3f4',
-                  border: 'none', borderRadius: '50%', width: 44, height: 44,
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  cursor: draft.trim() && !sending ? 'pointer' : 'default',
-                  color: draft.trim() && !sending ? '#fff' : '#536471',
-                  transition: 'background 0.2s', flexShrink: 0,
-                }}>
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
+            {/* Input Overhaul matching Telegram UX screenshot */}
+            <div style={{ padding: '12px 16px', borderTop: '1px solid var(--border)', display: 'flex', gap: '10px', alignItems: 'center', background: '#fff', flexShrink: 0, paddingBottom: 'calc(12px + env(safe-area-inset-bottom, 0px))' }}>
+              {/* Circular plus media button */}
+              <button style={{
+                background: '#eff3f4',
+                border: 'none',
+                borderRadius: '50%',
+                width: 42,
+                height: 42,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: 'pointer',
+                color: '#0f1419',
+                flexShrink: 0
+              }}>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
               </button>
+
+              {/* Input pill containing microphone/waveform icon */}
+              <div style={{ position: 'relative', display: 'flex', flex: 1, alignItems: 'center' }}>
+                <input
+                  type="text"
+                  placeholder="Message"
+                  value={draft}
+                  onChange={e => setDraft(e.target.value)}
+                  onKeyDown={e => e.key === 'Enter' && !e.shiftKey && sendMessage()}
+                  style={{
+                    width: '100%',
+                    background: '#eff3f4',
+                    border: 'none',
+                    borderRadius: '24px',
+                    padding: '12px 42px 12px 18px',
+                    outline: 'none',
+                    fontSize: '1rem',
+                    color: '#0f1419',
+                  }}
+                />
+                
+                {/* Voice message / Mic icon inside the input pill at the right */}
+                <div style={{ position: 'absolute', right: '14px', display: 'flex', alignItems: 'center', color: '#536471' }}>
+                  <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ cursor: 'pointer' }}>
+                    <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
+                    <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+                    <line x1="12" y1="19" x2="12" y2="23"/>
+                  </svg>
+                </div>
+              </div>
+
+              {/* Dynamic send button shown when user types */}
+              {draft.trim() && (
+                <button onClick={sendMessage} disabled={sending}
+                  style={{
+                    background: '#1d9bf0',
+                    border: 'none',
+                    borderRadius: '50%',
+                    width: 42,
+                    height: 42,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    cursor: 'pointer',
+                    color: '#fff',
+                    flexShrink: 0,
+                    transition: 'all 0.15s ease',
+                  }}>
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
+                </button>
+              )}
             </div>
           </>
         )}
       </main>
-      <MobileNav />
+      {view !== 'chat' && <MobileNav />}
     </div>
   );
 }

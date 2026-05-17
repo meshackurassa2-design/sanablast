@@ -1,4 +1,5 @@
 'use client';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
@@ -12,8 +13,37 @@ const SBLogo = () => (
   </svg>
 );
 
-export default function Sidebar({ user }) {
+export default function Sidebar({ user: propUser }) {
   const pathname = usePathname();
+
+  // Synchronous session recovery from localStorage to resolve tab-change flashing
+  const [sidebarUser, setSidebarUser] = useState(() => {
+    if (typeof window === 'undefined') return null;
+    try {
+      const token = localStorage.getItem('sb-xhegpgkyivzzdrqjwzoz-auth-token');
+      if (token) {
+        return JSON.parse(token)?.user || null;
+      }
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && key.startsWith('sb-') && key.endsWith('-auth-token')) {
+          const val = localStorage.getItem(key);
+          if (val) return JSON.parse(val)?.user || null;
+        }
+      }
+    } catch (e) {}
+    return null;
+  });
+
+  // Keep state active in real-time
+  useEffect(() => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_e, session) => {
+      setSidebarUser(session?.user ?? null);
+    });
+    return () => subscription.unsubscribe();
+  }, []);
+
+  const user = sidebarUser || propUser;
 
   const navItems = [
     { label: 'Home', href: '/', icon: <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M21 9.5L12 2 3 9.5V21a1 1 0 0 0 1 1h6v-7h4v7h6a1 1 0 0 0 1-1V9.5z"/></svg> },

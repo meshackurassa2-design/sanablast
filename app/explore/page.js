@@ -4,6 +4,7 @@ import { supabase } from '@/lib/supabase';
 import Sidebar from '@/components/Sidebar';
 import MobileNav from '@/components/MobileNav';
 import TrendsSidebar from '@/components/TrendsSidebar';
+import { FeedSkeleton } from '@/components/Loaders';
 
 const VerificationBadge = ({ course, isVerified }) => {
   if (!isVerified) return null;
@@ -66,7 +67,7 @@ export default function ExplorePage() {
 
     // Enrich with profiles
     const userIds = [...new Set(bData.map(b => b.user_id))];
-    const { data: profilesData } = await supabase.from('profiles').select('id, username, full_name, avatar_url, talent, is_verified').in('id', userIds);
+    const { data: profilesData } = await supabase.from('profiles').select('id, username, full_name, avatar_url').in('id', userIds);
     const profileMap = {};
     (profilesData || []).forEach(p => { profileMap[p.id] = p; });
 
@@ -91,7 +92,7 @@ export default function ExplorePage() {
         </header>
         
         {loading ? (
-          <div style={{ padding: '30px', textAlign: 'center', color: '#0f1419' }}>Loading trending blasts...</div>
+          <FeedSkeleton count={6} />
         ) : blasts.length === 0 ? (
           <div style={{ padding: '40px 20px', textAlign: 'center', color: '#536471' }}>No trending blasts found in {tab}.</div>
         ) : (
