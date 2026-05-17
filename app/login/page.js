@@ -82,8 +82,8 @@ export default function LoginPage() {
   return (
     <div className="login-container">
       <div className="auth-box">
-        <h2 style={{ fontSize: '2rem', marginBottom: '30px', textAlign: 'center', fontWeight: '800' }}>
-          {isSignUp ? 'Join Sanaa Blast today' : 'Sign in to Sanaa Blast'}
+        <h2 style={{ fontSize: '2.5rem', marginBottom: '40px', textAlign: 'left', fontWeight: '900', color: '#0f1419', lineHeight: 1.1 }}>
+          {isSignUp ? 'Join the\nExplosion.' : 'Sign in to\nSanaa Blast.'}
         </h2>
         
         <form onSubmit={handleAuth} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
@@ -143,20 +143,20 @@ export default function LoginPage() {
       </div>
       <style jsx>{`
         .login-container {
-          background-color: var(--bg);
+          background-color: #ffffff;
           min-height: 100vh;
           display: flex;
-          justify-content: center;
-          align-items: center;
-          padding: 20px;
+          flex-direction: column;
+          padding: 24px;
         }
         .auth-box {
-          background-color: #ffffff;
+          flex: 1;
+          display: flex;
+          flex-direction: column;
+          justify-content: center;
           width: 100%;
-          max-width: 400px;
-          padding: 40px;
-          border: 1px solid var(--border);
-          border-radius: 16px;
+          max-width: 500px;
+          margin: 0 auto;
         }
         .avatar-upload-container {
           display: flex;
@@ -205,38 +205,48 @@ export default function LoginPage() {
           font-size: 0.85rem;
         }
         .auth-input {
-          background-color: #ffffff;
-          border: 1px solid #cfd9de;
-          border-radius: 4px;
-          padding: 18px 16px;
+          background-color: #eff3f4;
+          border: 2px solid transparent;
+          border-radius: 16px;
+          padding: 18px 20px;
           color: #0f1419;
-          font-size: 1rem;
-          transition: border-color 0.2s;
+          font-size: 1.05rem;
+          font-weight: 500;
+          transition: all 0.2s ease;
         }
         .auth-input:focus {
-          border-color: var(--primary);
+          border-color: #1d9bf0;
+          background-color: #ffffff;
           outline: none;
         }
         .auth-submit {
           width: 100%;
-          padding: 16px;
-          font-size: 1.1rem;
-          margin-top: 10px;
+          padding: 18px;
+          font-size: 1.15rem;
+          font-weight: 800;
+          margin-top: 15px;
+          border-radius: 30px;
+          background-color: #0f1419;
+          color: #ffffff;
+          border: none;
+          cursor: pointer;
         }
         .auth-submit:disabled {
+          background-color: #536471;
           opacity: 0.7;
           cursor: not-allowed;
         }
         .auth-toggle {
           margin-top: 30px;
-          color: #1d9bf0;
+          color: #536471;
           cursor: pointer;
           text-align: center;
-          font-size: 0.95rem;
-          transition: text-decoration 0.2s;
+          font-size: 1rem;
+          font-weight: 600;
+          transition: color 0.2s;
         }
         .auth-toggle:hover {
-          text-decoration: underline;
+          color: #0f1419;
         }
       `}</style>
     </div>

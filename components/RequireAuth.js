@@ -2,12 +2,13 @@
 
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 
 export default function RequireAuth({ children }) {
   const [loading, setLoading] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const pathname = usePathname();
+  const router = useRouter();
   const normalizedPath = pathname ? pathname.replace(/\/$/, '') : '';
   const isLoginPage = normalizedPath === '/login';
 
@@ -22,7 +23,7 @@ export default function RequireAuth({ children }) {
     const timeout = setTimeout(() => {
       supabase.auth.getSession().then(({ data: { session } }) => {
         if (!session) {
-          window.location.replace('/login');
+          router.replace('/login');
         } else {
           setIsAuthenticated(true);
           setLoading(false);
@@ -32,7 +33,7 @@ export default function RequireAuth({ children }) {
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (!session) {
-        window.location.replace('/login');
+        router.replace('/login');
       } else {
         setIsAuthenticated(true);
         setLoading(false);
@@ -43,7 +44,7 @@ export default function RequireAuth({ children }) {
       clearTimeout(timeout);
       subscription.unsubscribe();
     };
-  }, [pathname, isLoginPage]);
+  }, [pathname, isLoginPage, router]);
 
   if (loading && !isLoginPage) {
     return (
