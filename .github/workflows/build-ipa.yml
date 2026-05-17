@@ -29,10 +29,25 @@ jobs:
           NEXT_PUBLIC_SUPABASE_URL: https://xhegpgkyivzzdrqjwzoz.supabase.co
           NEXT_PUBLIC_SUPABASE_ANON_KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhoZWdwZ2t5aXZ6emRycWp3em96Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg4NzMyOTksImV4cCI6MjA5NDQ0OTI5OX0.WGYsGA4_vXrRP_Cl5oLrd2dZ5hcppOQVUszh0KvwW10
 
-      - name: Capacitor - add and sync iOS
+      - name: Capacitor - add iOS platform
+        run: npx cap add ios
+
+      - name: Fix Podfile iOS minimum deployment target
         run: |
-          npx cap add ios
-          npx cap sync ios
+          PODFILE="ios/App/Podfile"
+          echo "Before fix:"
+          grep -i "platform" "$PODFILE" || true
+          # Capacitor 7.x requires iOS 16.0+
+          sed -i '' "s/platform :ios, '[0-9.]*/platform :ios, '16.0/g" "$PODFILE"
+          # If no platform line exists, add it
+          if ! grep -q "platform :ios" "$PODFILE"; then
+            sed -i '' '1s/^/platform :ios, '"'"'16.0'"'"'\n/' "$PODFILE"
+          fi
+          echo "After fix:"
+          grep -i "platform" "$PODFILE" || true
+
+      - name: Sync Capacitor iOS
+        run: npx cap sync ios
 
       - name: Build unsigned IPA
         run: |
