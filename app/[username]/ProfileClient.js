@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import Sidebar from '@/components/Sidebar';
 import MobileNav from '@/components/MobileNav';
@@ -10,6 +10,7 @@ import { ProfileSkeleton } from '@/components/Loaders';
 
 export default function ProfileClient() {
   const { username } = useParams();
+  const router = useRouter();
   const [profile, setProfile] = useState(null);
   const [blasts, setBlasts] = useState([]);
   const [currentUser, setCurrentUser] = useState(null);
@@ -27,11 +28,31 @@ export default function ProfileClient() {
   const avatarInputRef = useRef(null);
   const coverInputRef = useRef(null);
 
+  // Follow states
+  const [followingCount, setFollowingCount] = useState(0);
+  const [followersCount, setFollowersCount] = useState(0);
+  const [isFollowing, setIsFollowing] = useState(false);
+
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => setCurrentUser(session?.user ?? null));
   }, []);
 
   useEffect(() => { if (username) fetchProfile(); }, [username]);
+
+  useEffect(() => {
+    const checkFollowStatus = async () => {
+      if (currentUser && profile) {
+        const { data: followData } = await supabase
+          .from('follows')
+          .select('id')
+          .eq('follower_id', currentUser.id)
+          .eq('following_id', profile.id)
+          .maybeSingle();
+        setIsFollowing(!!followData);
+      }
+    };
+    checkFollowStatus();
+  }, [currentUser, profile]);
 
   const fetchProfile = async () => {
     try {
@@ -39,6 +60,14 @@ export default function ProfileClient() {
       if (pError || !profileData) { setProfile(null); setLoading(false); return; }
       setProfile(profileData);
       setLoading(false); // Instantly render the profile header details!
+
+      // Fetch follow counts
+      const [followingRes, followersRes] = await Promise.all([
+        supabase.from('follows').select('id', { count: 'exact', head: true }).eq('follower_id', profileData.id),
+        supabase.from('follows').select('id', { count: 'exact', head: true }).eq('following_id', profileData.id)
+      ]);
+      setFollowingCount(followingRes.count || 0);
+      setFollowersCount(followersRes.count || 0);
 
       // Fetch blasts with their nested likes and reposts in a single high-performance query
       const { data: bData } = await supabase
@@ -91,6 +120,35 @@ export default function ProfileClient() {
     finally { setSaving(false); }
   };
 
+  const handleFollowToggle = async () => {
+    if (!currentUser) {
+      router.push('/login');
+      return;
+    }
+    try {
+      if (isFollowing) {
+        await supabase
+          .from('follows')
+          .delete()
+          .eq('follower_id', currentUser.id)
+          .eq('following_id', profile.id);
+        setIsFollowing(false);
+        setFollowersCount(prev => Math.max(0, prev - 1));
+      } else {
+        await supabase
+          .from('follows')
+          .insert({
+            follower_id: currentUser.id,
+            following_id: profile.id
+          });
+        setIsFollowing(true);
+        setFollowersCount(prev => prev + 1);
+      }
+    } catch (err) {
+      console.error('Follow toggle error:', err);
+    }
+  };
+
   const isOwnProfile = currentUser && profile && currentUser.id === profile.id;
   const Avatar = ({ src, size = 40, style = {} }) => src
     ? <img src={src} alt="avatar" style={{ width: size, height: size, borderRadius: '50%', objectFit: 'cover', flexShrink: 0, ...style }} />
@@ -129,14 +187,24 @@ export default function ProfileClient() {
           <div style={{ display:'flex', justifyContent:'flex-end', paddingTop:'14px', marginBottom:'58px' }}>
             {isOwnProfile
               ? <button onClick={openEdit} style={{ border:'1px solid #cfd9de', borderRadius:'20px', background:'#fff', color:'#0f1419', padding:'7px 18px', fontWeight:'700', cursor:'pointer' }}>Edit profile</button>
-              : <button style={{ border:'none', borderRadius:'20px', background:'#0f1419', color:'#fff', padding:'7px 18px', fontWeight:'700', cursor:'pointer' }}>Follow</button>}
+              : <button onClick={handleFollowToggle} style={{ 
+                  border: isFollowing ? '1px solid #cfd9de' : 'none', 
+                  borderRadius: '20px', 
+                  background: isFollowing ? '#fff' : '#0f1419', 
+                  color: isFollowing ? '#0f1419' : '#fff', 
+                  padding: '7px 18px', 
+                  fontWeight: '700', 
+                  cursor: 'pointer' 
+                }}>
+                  {isFollowing ? 'Following' : 'Follow'}
+                </button>}
           </div>
           <div style={{ fontWeight:'900', fontSize:'1.25rem', color:'#0f1419', display:'flex', alignItems:'center' }}>{profile.full_name || username} <VerificationBadge course={profile.talent} isVerified={profile.is_verified} /></div>
           <div style={{ color:'#536471', fontSize:'0.95rem', marginBottom:'8px' }}>@{profile.username}</div>
           {profile.bio && <div style={{ color:'#0f1419', fontSize:'0.95rem', lineHeight:'1.4', marginBottom:'12px' }}>{profile.bio}</div>}
           <div style={{ display:'flex', gap:'20px', fontSize:'0.9rem' }}>
-            <span><b style={{ color:'#0f1419' }}>0</b> <span style={{ color:'#536471' }}>Following</span></span>
-            <span><b style={{ color:'#0f1419' }}>0</b> <span style={{ color:'#536471' }}>Followers</span></span>
+            <span><b style={{ color:'#0f1419' }}>{followingCount}</b> <span style={{ color:'#536471' }}>Following</span></span>
+            <span><b style={{ color:'#0f1419' }}>{followersCount}</b> <span style={{ color:'#536471' }}>Followers</span></span>
           </div>
         </div>
 
@@ -149,7 +217,7 @@ export default function ProfileClient() {
         {blasts.length === 0
           ? <div style={{ padding:'48px 16px', textAlign:'center', color:'#536471' }}>No posts yet</div>
           : blasts.map(blast => (
-            <div key={blast.id} onClick={() => window.location.href=`/${profile.username}/status/${blast.id}`}
+            <div key={blast.id} onClick={() => router.push(`/${profile.username}/status/${blast.id}`)}
               style={{ padding:'14px 16px', borderBottom:'1px solid #eff3f4', display:'flex', gap:'12px', cursor:'pointer' }}>
               <Avatar src={profile.avatar_url} size={42} />
               <div style={{ flex:1 }}>

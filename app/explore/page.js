@@ -1,5 +1,7 @@
 'use client';
-import { useState, useEffect } from 'react';
+
+import { useState, useEffect, useRef } from 'react';
+import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import Sidebar from '@/components/Sidebar';
 import MobileNav from '@/components/MobileNav';
@@ -40,10 +42,50 @@ const VerificationBadge = ({ course, isVerified }) => {
   };
 
 export default function ExplorePage() {
+  const router = useRouter();
   const [user, setUser] = useState(null);
   const [tab, setTab] = useState('Trending'); // Trending, News, Sports
   const [blasts, setBlasts] = useState([]);
   const [loading, setLoading] = useState(true);
+
+  // Search Overlay States
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState([]);
+  const [searching, setSearching] = useState(false);
+  const searchInputRef = useRef(null);
+
+  const openSearch = () => {
+    setSearchOpen(true);
+    setTimeout(() => searchInputRef.current?.focus(), 80);
+  };
+
+  const handleSearch = async (q) => {
+    setSearchQuery(q);
+    if (!q.trim()) { setSearchResults([]); return; }
+    setSearching(true);
+    try {
+      const { data: pData } = await supabase.from('profiles').select('id, username, full_name, avatar_url').ilike('username', `%${q}%`).limit(5);
+      const { data: bData } = await supabase.from('blasts').select('id, content, created_at, user_id, views_count').ilike('content', `%${q}%`).limit(10);
+      
+      const results = [];
+      (pData || []).forEach(p => results.push({ ...p, type: 'profile' }));
+      
+      if (bData && bData.length > 0) {
+        const userIds = [...new Set(bData.map(b => b.user_id))];
+        const { data: profiles } = await supabase.from('profiles').select('id, username, full_name, avatar_url').in('id', userIds);
+        const pMap = {};
+        (profiles || []).forEach(p => { pMap[p.id] = p; });
+        bData.forEach(b => results.push({ ...b, type: 'blast', profiles: pMap[b.user_id] || null }));
+      }
+      
+      setSearchResults(results);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setSearching(false);
+    }
+  };
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -80,7 +122,7 @@ export default function ExplorePage() {
       <Sidebar user={user} />
       <main className="feed">
         <header className="feed-header">
-          <div className="search-bar" style={{ margin: '10px 20px', width: 'auto' }}>
+          <div className="search-bar" onClick={openSearch} style={{ margin: '10px 20px', width: 'auto', cursor: 'pointer' }}>
             <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M10 18a7.952 7.952 0 0 0 4.897-1.688l4.396 4.396 1.414-1.414-4.396-4.396A7.952 7.952 0 0 0 18 10c0-4.411-3.589-8-8-8s-8 3.589-8 8 3.589 8 8 8zm0-14c3.309 0 6 2.691 6 6s-2.691 6-6 6-6-2.691-6-6 2.691-6 6-6z"/></svg>
             Search Sanaa Blast
           </div>
@@ -97,14 +139,14 @@ export default function ExplorePage() {
           <div style={{ padding: '40px 20px', textAlign: 'center', color: '#536471' }}>No trending blasts found in {tab}.</div>
         ) : (
           blasts.map(blast => (
-            <div key={blast.id} className="blast-card" onClick={() => window.location.href = `/${blast.profiles?.username}/status/${blast.id}`}>
-              <Avatar src={blast.profiles?.avatar_url} name={blast.profiles?.full_name || blast.profiles?.username} size={40} onClick={(e) => { e.stopPropagation(); window.location.href = `/${blast.profiles?.username}`; }} />
+            <div key={blast.id} className="blast-card" onClick={() => router.push(`/${blast.profiles?.username || 'user'}/status/${blast.id}`)}>
+              <Avatar src={blast.profiles?.avatar_url} name={blast.profiles?.full_name || blast.profiles?.username} size={40} onClick={(e) => { e.stopPropagation(); router.push(`/${blast.profiles?.username || 'user'}`); }} />
               <div className="blast-body">
                 <div className="blast-user">
-                  <span className="name" onClick={(e) => { e.stopPropagation(); window.location.href = `/${blast.profiles?.username}`; }} style={{ display: 'flex', alignItems: 'center' }}>
+                  <span className="name" onClick={(e) => { e.stopPropagation(); router.push(`/${blast.profiles?.username || 'user'}`); }} style={{ display: 'flex', alignItems: 'center' }}>
                     {blast.profiles?.full_name || blast.profiles?.username || 'User'} <VerificationBadge course={blast.profiles?.talent} isVerified={blast.profiles?.is_verified} />
                   </span>
-                  <span className="handle" onClick={(e) => { e.stopPropagation(); window.location.href = `/${blast.profiles?.username}`; }}>@{blast.profiles?.username || 'user'}</span>
+                  <span className="handle" onClick={(e) => { e.stopPropagation(); router.push(`/${blast.profiles?.username || 'user'}`); }}>@{blast.profiles?.username || 'user'}</span>
                   <span className="time">· {new Date(blast.created_at).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
                 </div>
                 <div className="content" style={{ fontSize: '1rem', lineHeight: '1.55', letterSpacing: '0.01em', marginBottom: (blast.media_url ? '12px' : '0'), wordBreak: 'break-word' }}>
@@ -142,6 +184,92 @@ export default function ExplorePage() {
       </main>
       <TrendsSidebar />
       <MobileNav />
+
+      {/* ══ SEARCH OVERLAY ══ */}
+      {searchOpen && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 5000, background: '#ffffff', display: 'flex', flexDirection: 'column' }}>
+          {/* Search bar header */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: 'max(env(safe-area-inset-top), 12px) 16px 12px 16px', borderBottom: '1px solid #eff3f4' }}>
+            <div onClick={() => { setSearchOpen(false); setSearchQuery(''); setSearchResults([]); }} style={{ cursor: 'pointer', flexShrink: 0 }}>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/>
+              </svg>
+            </div>
+            <div style={{ flex: 1, display: 'flex', alignItems: 'center', background: '#eff3f4', borderRadius: '20px', padding: '10px 16px', gap: '10px' }}>
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#536471" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+              </svg>
+              <input
+                ref={searchInputRef}
+                value={searchQuery}
+                onChange={e => handleSearch(e.target.value)}
+                placeholder="Search Sanaa Blast..."
+                style={{ border: 'none', outline: 'none', background: 'transparent', fontSize: '1rem', color: '#0f1419', flex: 1 }}
+              />
+              {searchQuery && (
+                <div onClick={() => { setSearchQuery(''); setSearchResults([]); searchInputRef.current?.focus(); }} style={{ cursor: 'pointer', color: '#536471' }}>✕</div>
+              )}
+            </div>
+          </div>
+
+          {/* Results */}
+          <div style={{ flex: 1, overflowY: 'auto' }}>
+            {!searchQuery ? (
+              <div style={{ padding: '40px 20px', textAlign: 'center', color: '#536471' }}>
+                <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#cfd9de" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ marginBottom: '12px' }}>
+                  <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+                </svg>
+                <div style={{ fontSize: '1.1rem', fontWeight: '700', color: '#0f1419', marginBottom: '6px' }}>Search Sanaa Blast</div>
+                <div style={{ fontSize: '0.9rem' }}>Search for people, blasts, and topics</div>
+              </div>
+            ) : searching ? (
+              <div style={{ padding: '40px', textAlign: 'center', color: '#536471' }}>Searching...</div>
+            ) : searchResults.length === 0 ? (
+              <div style={{ padding: '40px', textAlign: 'center', color: '#536471' }}>
+                <div style={{ fontWeight: '700', color: '#0f1419', marginBottom: '6px' }}>No results for "{searchQuery}"</div>
+                <div style={{ fontSize: '0.9rem' }}>Try different keywords</div>
+              </div>
+            ) : (
+              <div>
+                {searchResults.map((item, idx) => (
+                  item.type === 'profile' ? (
+                    <div key={`p-${item.id}`} onClick={() => { setSearchOpen(false); router.push(`/${item.username}`); }}
+                      style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '14px 16px', borderBottom: '1px solid #eff3f4', cursor: 'pointer' }}>
+                      {item.avatar_url
+                        ? <img src={item.avatar_url} style={{ width: 44, height: 44, borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} alt="" />
+                        : <div style={{ width: 44, height: 44, borderRadius: '50%', background: '#cfd9de', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '700', fontSize: '1.1rem', color: '#fff', flexShrink: 0 }}>
+                            {(item.full_name || item.username || '?').charAt(0).toUpperCase()}
+                          </div>
+                      }
+                      <div>
+                        <div style={{ fontWeight: '800', color: '#0f1419', fontSize: '0.97rem' }}>{item.full_name || item.username}</div>
+                        <div style={{ color: '#536471', fontSize: '0.88rem' }}>@{item.username}</div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div key={`b-${item.id}`} onClick={() => { setSearchOpen(false); router.push(`/${item.profiles?.username || 'user'}/status/${item.id}`); }}
+                      style={{ padding: '14px 16px', borderBottom: '1px solid #eff3f4', cursor: 'pointer' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
+                        {item.profiles?.avatar_url
+                          ? <img src={item.profiles.avatar_url} style={{ width: 32, height: 32, borderRadius: '50%', objectFit: 'cover' }} alt="" />
+                          : <div style={{ width: 32, height: 32, borderRadius: '50%', background: '#cfd9de', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '700', fontSize: '0.85rem', color: '#fff' }}>
+                              {(item.profiles?.full_name || item.profiles?.username || '?').charAt(0).toUpperCase()}
+                            </div>
+                        }
+                        <div>
+                          <span style={{ fontWeight: '700', color: '#0f1419', fontSize: '0.9rem' }}>{item.profiles?.full_name || item.profiles?.username}</span>
+                          <span style={{ color: '#536471', fontSize: '0.8rem', marginLeft: '6px' }}>@{item.profiles?.username}</span>
+                        </div>
+                      </div>
+                      <div style={{ fontSize: '0.95rem', color: '#0f1419', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{item.content}</div>
+                    </div>
+                  )
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

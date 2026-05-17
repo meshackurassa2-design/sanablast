@@ -6,11 +6,14 @@ import Sidebar from '@/components/Sidebar';
 import MobileNav from '@/components/MobileNav';
 import TrendsSidebar from '@/components/TrendsSidebar';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { FeedSkeleton } from '@/components/Loaders';
 
 export default function Home() {
+  const router = useRouter();
   // ── ALL HOOKS AT TOP (React rules) ──
   const [blasts, setBlasts] = useState([]);
+  const [feedTab, setFeedTab] = useState('foryou');
   const [user, setUser] = useState(null);
   const [profileData, setProfileData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -126,14 +129,53 @@ export default function Home() {
     };
   }, []);
 
+  // Fetch when tab or user changes
+  useEffect(() => {
+    fetchBlasts();
+  }, [feedTab, user]);
+
   const fetchBlasts = async () => {
     try {
-      // Step 1: fetch blasts
-      const { data: bData, error: bError } = await supabase
-        .from('blasts')
-        .select('id, content, user_id, created_at, media_url, media_type, category, views_count, reply_to')
-        .order('created_at', { ascending: false })
-        .limit(30);
+      setLoading(true);
+      let bData = [];
+      let bError = null;
+
+      if (feedTab === 'following') {
+        if (!user) {
+          setBlasts([]);
+          setLoading(false);
+          return;
+        }
+        // Get followed profiles
+        const { data: followsData, error: fError } = await supabase
+          .from('follows')
+          .select('following_id')
+          .eq('follower_id', user.id);
+
+        if (fError || !followsData || followsData.length === 0) {
+          setBlasts([]);
+          setLoading(false);
+          return;
+        }
+
+        const followingIds = followsData.map(f => f.following_id);
+        const { data, error } = await supabase
+          .from('blasts')
+          .select('id, content, user_id, created_at, media_url, media_type, category, views_count, reply_to')
+          .in('user_id', [...followingIds, user.id])
+          .order('created_at', { ascending: false })
+          .limit(30);
+        bData = data;
+        bError = error;
+      } else {
+        const { data, error } = await supabase
+          .from('blasts')
+          .select('id, content, user_id, created_at, media_url, media_type, category, views_count, reply_to')
+          .order('created_at', { ascending: false })
+          .limit(30);
+        bData = data;
+        bError = error;
+      }
 
       if (bError || !bData || bData.length === 0) {
         setBlasts([]);
@@ -145,10 +187,11 @@ export default function Home() {
       const userIds = [...new Set(bData.map(b => b.user_id).filter(Boolean))];
       const blastIds = bData.map(b => b.id);
 
-      const [profilesRes, likesRes, repostsRes] = await Promise.all([
+      const [profilesRes, likesRes, repostsRes, repliesRes] = await Promise.all([
         supabase.from('profiles').select('id, username, full_name, avatar_url').in('id', userIds),
         supabase.from('likes').select('id, blast_id, user_id').in('blast_id', blastIds),
         supabase.from('reposts').select('id, blast_id, user_id').in('blast_id', blastIds),
+        supabase.from('blasts').select('id, reply_to').in('reply_to', blastIds)
       ]);
 
       const profileMap = {};
@@ -161,11 +204,14 @@ export default function Home() {
           profiles: profileMap[b.user_id] || null,
           likes: (likesRes.data || []).filter(l => l.blast_id === b.id),
           reposts: (repostsRes.data || []).filter(r => r.blast_id === b.id),
+          comments: (repliesRes.data || []).filter(rep => rep.reply_to === b.id)
         }));
 
       setBlasts(enriched);
-      // Cache for next visit
-      try { localStorage.setItem('sb_blasts_feed', JSON.stringify(enriched)); } catch(_) {}
+      // Cache only the main 'For You' feed for instant load
+      if (feedTab === 'foryou') {
+        try { localStorage.setItem('sb_blasts_feed', JSON.stringify(enriched)); } catch(_) {}
+      }
     } catch (err) {
       console.error('Fetch blasts failed:', err);
     } finally {
@@ -205,10 +251,14 @@ export default function Home() {
 
   // ── INCREMENT VIEW COUNT (optimistic + DB) ──
   const incrementView = async (blastId) => {
-    setBlasts(prev => prev.map(b =>
-      b.id === blastId ? { ...b, views_count: (b.views_count || 0) + 1 } : b
-    ));
-    await supabase.rpc('increment_views', { blast_id: blastId });
+    try {
+      setBlasts(prev => prev.map(b =>
+        b.id === blastId ? { ...b, views_count: (b.views_count || 0) + 1 } : b
+      ));
+      await supabase.rpc('increment_views', { blast_id: blastId });
+    } catch (err) {
+      console.warn('Views RPC increment failed (optional feature):', err);
+    }
   };
 
   // ── SEARCH ──
@@ -461,8 +511,14 @@ export default function Home() {
           </div>
 
           <div className="feed-tabs">
-            <div className="tab active">For you</div>
-            <div className="tab">Following</div>
+            <div className={`tab ${feedTab === 'foryou' ? 'active' : ''}`} onClick={() => setFeedTab('foryou')}>For you</div>
+            <div className={`tab ${feedTab === 'following' ? 'active' : ''}`} onClick={() => {
+              if (!user) {
+                router.push('/login');
+              } else {
+                setFeedTab('following');
+              }
+            }}>Following</div>
           </div>
 
           {/* New Compose Pill (Threads style) */}
@@ -475,15 +531,31 @@ export default function Home() {
         {/* Feed */}
         {loading ? (
           <FeedSkeleton count={6} />
+        ) : blasts.length === 0 ? (
+          <div style={{ padding: '48px 20px', textAlign: 'center', color: '#536471' }}>
+            <h3 style={{ fontSize: '1.25rem', fontWeight: '800', color: '#0f1419', marginBottom: '8px' }}>
+              {feedTab === 'following' ? "You aren't following anyone yet" : "No blasts found"}
+            </h3>
+            <p style={{ fontSize: '0.95rem', maxWidth: '340px', margin: '0 auto', lineHeight: '1.4' }}>
+              {feedTab === 'following' 
+                ? "Find talented Tanzanian creators on Explore and follow them to build your custom feed!" 
+                : "Be the first to share your thoughts, music, or films with the world!"}
+            </p>
+            {feedTab === 'following' && (
+              <button onClick={() => router.push('/explore')} style={{ marginTop: '16px', background: '#1d9bf0', color: '#fff', border: 'none', borderRadius: '20px', padding: '8px 20px', fontWeight: '800', cursor: 'pointer' }}>
+                Go to Explore
+              </button>
+            )}
+          </div>
         ) : blasts.map(blast => (
-          <div key={blast.id} className="blast-card" onClick={() => { incrementView(blast.id); window.location.href = `/${blast.profiles?.username || (blast.user_id === user?.id ? username : 'user')}/status/${blast.id}`; }}>
-            <Avatar src={blast.profiles?.avatar_url || (blast.user_id === user?.id ? avatarUrl : null)} name={blast.profiles?.full_name || blast.profiles?.username || (blast.user_id === user?.id ? fullName : 'User')} size={40} onClick={(e) => { e.stopPropagation(); window.location.href = `/${blast.profiles?.username || (blast.user_id === user?.id ? username : 'user')}`; }} />
+          <div key={blast.id} className="blast-card" onClick={() => { incrementView(blast.id); router.push(`/${blast.profiles?.username || (blast.user_id === user?.id ? username : 'user')}/status/${blast.id}`); }}>
+            <Avatar src={blast.profiles?.avatar_url || (blast.user_id === user?.id ? avatarUrl : null)} name={blast.profiles?.full_name || blast.profiles?.username || (blast.user_id === user?.id ? fullName : 'User')} size={40} onClick={(e) => { e.stopPropagation(); router.push(`/${blast.profiles?.username || (blast.user_id === user?.id ? username : 'user')}`); }} />
             <div className="blast-body">
               <div className="blast-user">
-                <span className="name" onClick={(e) => { e.stopPropagation(); window.location.href = `/${blast.profiles?.username || (blast.user_id === user?.id ? username : 'user')}`; }} style={{ display: 'flex', alignItems: 'center' }}>
+                <span className="name" onClick={(e) => { e.stopPropagation(); router.push(`/${blast.profiles?.username || (blast.user_id === user?.id ? username : 'user')}`); }} style={{ display: 'flex', alignItems: 'center' }}>
                   {blast.profiles?.full_name || blast.profiles?.username || (blast.user_id === user?.id ? fullName : 'User')} <VerificationBadge course={blast.profiles?.talent || (blast.user_id === user?.id ? profileData?.talent : null)} isVerified={blast.profiles?.is_verified || (blast.user_id === user?.id ? profileData?.is_verified : false)} />
                 </span>
-                <span className="handle" onClick={(e) => { e.stopPropagation(); window.location.href = `/${blast.profiles?.username || (blast.user_id === user?.id ? username : 'user')}`; }}>@{blast.profiles?.username || (blast.user_id === user?.id ? username : 'user')}</span>
+                <span className="handle" onClick={(e) => { e.stopPropagation(); router.push(`/${blast.profiles?.username || (blast.user_id === user?.id ? username : 'user')}`); }}>@{blast.profiles?.username || (blast.user_id === user?.id ? username : 'user')}</span>
                 <span className="time">· {new Date(blast.created_at).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
               </div>
               <div className="content" style={{ fontSize: '1rem', lineHeight: '1.55', letterSpacing: '0.01em', marginBottom: (blast.media_url ? '12px' : '0'), wordBreak: 'break-word' }}>
@@ -510,7 +582,7 @@ export default function Home() {
               )}
 
               <div className="actions">
-                <div className="action-item reply">
+                <div className="action-item reply" onClick={(e) => { e.stopPropagation(); router.push(`/${blast.profiles?.username || (blast.user_id === user?.id ? username : 'user')}/status/${blast.id}`); }}>
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
                   <span>{blast.comments?.length || 0}</span>
                 </div>
@@ -541,7 +613,7 @@ export default function Home() {
       {searchOpen && (
         <div style={{ position: 'fixed', inset: 0, zIndex: 5000, background: '#ffffff', display: 'flex', flexDirection: 'column' }}>
           {/* Search bar header */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px 16px', borderBottom: '1px solid #eff3f4' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: 'max(env(safe-area-inset-top), 12px) 16px 12px 16px', borderBottom: '1px solid #eff3f4' }}>
             <div onClick={() => { setSearchOpen(false); setSearchQuery(''); setSearchResults([]); }} style={{ cursor: 'pointer', flexShrink: 0 }}>
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
                 <line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/>
@@ -585,7 +657,7 @@ export default function Home() {
               <div>
                 {searchResults.map((item, idx) => (
                   item.type === 'profile' ? (
-                    <div key={`p-${item.id}`} onClick={() => { setSearchOpen(false); window.location.href = `/${item.username}`; }}
+                    <div key={`p-${item.id}`} onClick={() => { setSearchOpen(false); router.push(`/${item.username}`); }}
                       style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '14px 16px', borderBottom: '1px solid #eff3f4', cursor: 'pointer' }}>
                       {item.avatar_url
                         ? <img src={item.avatar_url} style={{ width: 44, height: 44, borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} alt="" />
@@ -599,7 +671,7 @@ export default function Home() {
                       </div>
                     </div>
                   ) : (
-                    <div key={`b-${item.id}`} onClick={() => { setSearchOpen(false); incrementView(item.id); window.location.href = `/${item.profiles?.username || 'user'}/status/${item.id}`; }}
+                    <div key={`b-${item.id}`} onClick={() => { setSearchOpen(false); incrementView(item.id); router.push(`/${item.profiles?.username || 'user'}/status/${item.id}`); }}
                       style={{ padding: '14px 16px', borderBottom: '1px solid #eff3f4', cursor: 'pointer' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
                         {item.profiles?.avatar_url
