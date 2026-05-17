@@ -99,6 +99,7 @@ export default function GlobalCompose() {
       <div style={{
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
         padding: '12px 16px',
+        paddingTop: 'max(env(safe-area-inset-top), 16px)',
         borderBottom: '1px solid #eff3f4',
       }}>
         <button onClick={() => setOpen(false)}

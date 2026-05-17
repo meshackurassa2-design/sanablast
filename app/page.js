@@ -640,6 +640,7 @@ export default function Home() {
           <div style={{
             display: 'flex', alignItems: 'center', justifyContent: 'space-between',
             padding: '12px 16px',
+            paddingTop: 'max(env(safe-area-inset-top), 16px)',
             borderBottom: '1px solid #2f3336',
           }}>
             <button onClick={() => setComposeOpen(false)}
