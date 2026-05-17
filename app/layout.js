@@ -2,6 +2,14 @@ import "./globals.css";
 import GlobalCompose from "@/components/GlobalCompose";
 import RequireAuth from "@/components/RequireAuth";
 
+export const viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+  viewportFit: 'cover',
+};
+
 export const metadata = {
   title: "Sanaa Blast UDSM | The Creative Explosion",
   description: "Official social platform for the Sanaa Blast festival at the University of Dar es Salaam.",

@@ -210,7 +210,7 @@ export default function LoginPage() {
           border-radius: 16px;
           padding: 18px 20px;
           color: #0f1419;
-          font-size: 1.05rem;
+          font-size: 16px !important;
           font-weight: 500;
           transition: all 0.2s ease;
         }

@@ -66,7 +66,7 @@ export default function Sidebar({ user: propUser }) {
         ))}
       </nav>
       {user ? (
-        <button className="blast-btn" style={{ background: '#f4212e', borderRadius: '30px', marginTop: '20px' }} onClick={() => supabase.auth.signOut()}>Log out</button>
+        <button className="blast-btn" style={{ background: '#f4212e', borderRadius: '30px', marginTop: '20px' }} onClick={async () => { await supabase.auth.signOut(); }}>Log out</button>
       ) : (
         <Link href="/login" className="blast-btn" style={{ textAlign: 'center', textDecoration: 'none', background: 'var(--primary)', borderRadius: '30px', marginTop: '20px' }}>Log in</Link>
       )}
