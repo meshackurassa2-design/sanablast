@@ -118,7 +118,7 @@ export default function ProfileClient() {
   return (
     <div className="layout">
       <Sidebar user={currentUser} />
-      <main className="feed" style={{ paddingBottom:'80px' }}>
+      <main className="feed" style={{ paddingBottom: '80px', paddingTop: 'env(safe-area-inset-top, 0px)' }}>
         <div style={{ width:'100%', height:'160px', backgroundColor:'#cfd9de', overflow:'hidden' }}>
           {profile.cover_url ? <img src={profile.cover_url} alt="cover" style={{ width:'100%', height:'100%', objectFit:'cover' }} /> : <div style={{ width:'100%', height:'100%', background:'linear-gradient(135deg,#667eea,#764ba2)' }} />}
         </div>

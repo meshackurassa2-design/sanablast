@@ -170,7 +170,7 @@ export default function MessagesPage() {
       <main className="feed" style={{ display: 'flex', flexDirection: 'column', height: '100dvh', overflow: 'hidden', paddingBottom: view === 'chat' ? 0 : undefined }}>
 
         {/* ── HEADER ── */}
-        <header style={{ display: 'flex', alignItems: 'center', padding: '12px 20px', gap: '12px', borderBottom: '1px solid var(--border)', flexShrink: 0 }}>
+        <header style={{ display: 'flex', alignItems: 'center', padding: '12px 20px', paddingTop: 'max(env(safe-area-inset-top), 12px)', gap: '12px', borderBottom: '1px solid var(--border)', flexShrink: 0, background: 'rgba(255,255,255,0.92)', backdropFilter: 'blur(12px)', position: 'sticky', top: 0, zIndex: 10 }}>
           {view === 'chat' ? (
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px', width: '100%' }}>
               <button onClick={() => { setView('list'); setChatUser(null); setMessages([]); }}
