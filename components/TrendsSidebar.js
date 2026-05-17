@@ -153,7 +153,7 @@ export default function TrendsSidebar() {
       <div className="trending-box">
         <h3>Trends for you</h3>
         {trendingBlasts.length > 0 ? trendingBlasts.map(blast => (
-          <div key={blast.id} className="trend-item" onClick={() => window.location.href = `/${blast.profiles?.username || (blast.user_id === currentUser?.id ? currentUser?.user_metadata?.username : 'user')}/status/${blast.id}`} style={{ cursor: 'pointer' }}>
+          <div key={blast.id} className="trend-item" onClick={() => window.location.href = `/status?id=${blast.id}&username=${blast.profiles?.username || (blast.user_id === currentUser?.id ? currentUser?.user_metadata?.username : 'user')}`} style={{ cursor: 'pointer' }}>
             <div className="trend-label">Trending · {(blast.likes?.length || 0) + (blast.reposts?.length || 0)} Interactions</div>
             <div className="trend-name" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontWeight: 'bold', margin: '2px 0', color: 'var(--text)', display: 'flex', alignItems: 'center' }}>
               {blast.content?.substring(0, 30)}{blast.content?.length > 30 ? '...' : ''}

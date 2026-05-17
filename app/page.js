@@ -548,14 +548,14 @@ export default function Home() {
             )}
           </div>
         ) : blasts.map(blast => (
-          <div key={blast.id} className="blast-card" onClick={() => { incrementView(blast.id); router.push(`/${blast.profiles?.username || (blast.user_id === user?.id ? username : 'user')}/status/${blast.id}`); }}>
-            <Avatar src={blast.profiles?.avatar_url || (blast.user_id === user?.id ? avatarUrl : null)} name={blast.profiles?.full_name || blast.profiles?.username || (blast.user_id === user?.id ? fullName : 'User')} size={40} onClick={(e) => { e.stopPropagation(); router.push(`/${blast.profiles?.username || (blast.user_id === user?.id ? username : 'user')}`); }} />
+          <div key={blast.id} className="blast-card" onClick={() => { incrementView(blast.id); router.push(`/status?id=${blast.id}&username=${blast.profiles?.username || (blast.user_id === user?.id ? username : 'user')}`); }}>
+            <Avatar src={blast.profiles?.avatar_url || (blast.user_id === user?.id ? avatarUrl : null)} name={blast.profiles?.full_name || blast.profiles?.username || (blast.user_id === user?.id ? fullName : 'User')} size={40} onClick={(e) => { e.stopPropagation(); router.push(`/profile?username=${blast.profiles?.username || (blast.user_id === user?.id ? username : 'user')}`); }} />
             <div className="blast-body">
               <div className="blast-user">
-                <span className="name" onClick={(e) => { e.stopPropagation(); router.push(`/${blast.profiles?.username || (blast.user_id === user?.id ? username : 'user')}`); }} style={{ display: 'flex', alignItems: 'center' }}>
+                <span className="name" onClick={(e) => { e.stopPropagation(); router.push(`/profile?username=${blast.profiles?.username || (blast.user_id === user?.id ? username : 'user')}`); }} style={{ display: 'flex', alignItems: 'center' }}>
                   {blast.profiles?.full_name || blast.profiles?.username || (blast.user_id === user?.id ? fullName : 'User')} <VerificationBadge course={blast.profiles?.talent || (blast.user_id === user?.id ? profileData?.talent : null)} isVerified={blast.profiles?.is_verified || (blast.user_id === user?.id ? profileData?.is_verified : false)} />
                 </span>
-                <span className="handle" onClick={(e) => { e.stopPropagation(); router.push(`/${blast.profiles?.username || (blast.user_id === user?.id ? username : 'user')}`); }}>@{blast.profiles?.username || (blast.user_id === user?.id ? username : 'user')}</span>
+                <span className="handle" onClick={(e) => { e.stopPropagation(); router.push(`/profile?username=${blast.profiles?.username || (blast.user_id === user?.id ? username : 'user')}`); }}>@{blast.profiles?.username || (blast.user_id === user?.id ? username : 'user')}</span>
                 <span className="time">· {new Date(blast.created_at).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
               </div>
               <div className="content" style={{ fontSize: '1rem', lineHeight: '1.55', letterSpacing: '0.01em', marginBottom: (blast.media_url ? '12px' : '0'), wordBreak: 'break-word' }}>
@@ -582,7 +582,7 @@ export default function Home() {
               )}
 
               <div className="actions">
-                <div className="action-item reply" onClick={(e) => { e.stopPropagation(); router.push(`/${blast.profiles?.username || (blast.user_id === user?.id ? username : 'user')}/status/${blast.id}`); }}>
+                <div className="action-item reply" onClick={(e) => { e.stopPropagation(); router.push(`/status?id=${blast.id}&username=${blast.profiles?.username || (blast.user_id === user?.id ? username : 'user')}`); }}>
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
                   <span>{blast.comments?.length || 0}</span>
                 </div>
@@ -657,7 +657,7 @@ export default function Home() {
               <div>
                 {searchResults.map((item, idx) => (
                   item.type === 'profile' ? (
-                    <div key={`p-${item.id}`} onClick={() => { setSearchOpen(false); router.push(`/${item.username}`); }}
+                    <div key={`p-${item.id}`} onClick={() => { setSearchOpen(false); router.push(`/profile?username=${item.username}`); }}
                       style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '14px 16px', borderBottom: '1px solid #eff3f4', cursor: 'pointer' }}>
                       {item.avatar_url
                         ? <img src={item.avatar_url} style={{ width: 44, height: 44, borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} alt="" />
@@ -671,7 +671,7 @@ export default function Home() {
                       </div>
                     </div>
                   ) : (
-                    <div key={`b-${item.id}`} onClick={() => { setSearchOpen(false); incrementView(item.id); router.push(`/${item.profiles?.username || 'user'}/status/${item.id}`); }}
+                    <div key={`b-${item.id}`} onClick={() => { setSearchOpen(false); incrementView(item.id); router.push(`/status?id=${item.id}&username=${item.profiles?.username || 'user'}`); }}
                       style={{ padding: '14px 16px', borderBottom: '1px solid #eff3f4', cursor: 'pointer' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
                         {item.profiles?.avatar_url

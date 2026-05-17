@@ -139,14 +139,14 @@ export default function ExplorePage() {
           <div style={{ padding: '40px 20px', textAlign: 'center', color: '#536471' }}>No trending blasts found in {tab}.</div>
         ) : (
           blasts.map(blast => (
-            <div key={blast.id} className="blast-card" onClick={() => router.push(`/${blast.profiles?.username || 'user'}/status/${blast.id}`)}>
-              <Avatar src={blast.profiles?.avatar_url} name={blast.profiles?.full_name || blast.profiles?.username} size={40} onClick={(e) => { e.stopPropagation(); router.push(`/${blast.profiles?.username || 'user'}`); }} />
+            <div key={blast.id} className="blast-card" onClick={() => router.push(`/status?id=${blast.id}&username=${blast.profiles?.username || 'user'}`)}>
+              <Avatar src={blast.profiles?.avatar_url} name={blast.profiles?.full_name || blast.profiles?.username} size={40} onClick={(e) => { e.stopPropagation(); router.push(`/profile?username=${blast.profiles?.username || 'user'}`); }} />
               <div className="blast-body">
                 <div className="blast-user">
-                  <span className="name" onClick={(e) => { e.stopPropagation(); router.push(`/${blast.profiles?.username || 'user'}`); }} style={{ display: 'flex', alignItems: 'center' }}>
+                  <span className="name" onClick={(e) => { e.stopPropagation(); router.push(`/profile?username=${blast.profiles?.username || 'user'}`); }} style={{ display: 'flex', alignItems: 'center' }}>
                     {blast.profiles?.full_name || blast.profiles?.username || 'User'} <VerificationBadge course={blast.profiles?.talent} isVerified={blast.profiles?.is_verified} />
                   </span>
-                  <span className="handle" onClick={(e) => { e.stopPropagation(); router.push(`/${blast.profiles?.username || 'user'}`); }}>@{blast.profiles?.username || 'user'}</span>
+                  <span className="handle" onClick={(e) => { e.stopPropagation(); router.push(`/profile?username=${blast.profiles?.username || 'user'}`); }}>@{blast.profiles?.username || 'user'}</span>
                   <span className="time">· {new Date(blast.created_at).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
                 </div>
                 <div className="content" style={{ fontSize: '1rem', lineHeight: '1.55', letterSpacing: '0.01em', marginBottom: (blast.media_url ? '12px' : '0'), wordBreak: 'break-word' }}>
@@ -233,7 +233,7 @@ export default function ExplorePage() {
               <div>
                 {searchResults.map((item, idx) => (
                   item.type === 'profile' ? (
-                    <div key={`p-${item.id}`} onClick={() => { setSearchOpen(false); router.push(`/${item.username}`); }}
+                    <div key={`p-${item.id}`} onClick={() => { setSearchOpen(false); router.push(`/profile?username=${item.username}`); }}
                       style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '14px 16px', borderBottom: '1px solid #eff3f4', cursor: 'pointer' }}>
                       {item.avatar_url
                         ? <img src={item.avatar_url} style={{ width: 44, height: 44, borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} alt="" />
@@ -247,7 +247,7 @@ export default function ExplorePage() {
                       </div>
                     </div>
                   ) : (
-                    <div key={`b-${item.id}`} onClick={() => { setSearchOpen(false); router.push(`/${item.profiles?.username || 'user'}/status/${item.id}`); }}
+                    <div key={`b-${item.id}`} onClick={() => { setSearchOpen(false); router.push(`/status?id=${item.id}&username=${item.profiles?.username || 'user'}`); }}
                       style={{ padding: '14px 16px', borderBottom: '1px solid #eff3f4', cursor: 'pointer' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
                         {item.profiles?.avatar_url

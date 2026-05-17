@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import Sidebar from '@/components/Sidebar';
 import MobileNav from '@/components/MobileNav';
@@ -9,10 +9,13 @@ import Link from 'next/link';
 import { ProfileSkeleton } from '@/components/Loaders';
 
 export default function ProfileClient() {
-  const { username } = useParams();
+  const params = useParams() || {};
+  const searchParams = useSearchParams();
   const router = useRouter();
+  const username = params.username || searchParams.get('username');
   const [profile, setProfile] = useState(null);
   const [blasts, setBlasts] = useState([]);
+  const [likedBlasts, setLikedBlasts] = useState([]);
   const [currentUser, setCurrentUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('posts');
@@ -69,7 +72,7 @@ export default function ProfileClient() {
       setFollowingCount(followingRes.count || 0);
       setFollowersCount(followersRes.count || 0);
 
-      // Fetch blasts with their nested likes and reposts in a single high-performance query
+      // Fetch blasts with their nested likes and reposts
       const { data: bData } = await supabase
         .from('blasts')
         .select(`
@@ -80,7 +83,68 @@ export default function ProfileClient() {
         .eq('user_id', profileData.id)
         .order('created_at', { ascending: false });
 
-      setBlasts(bData || []);
+      // Fetch replies/comments counts for these blasts
+      if (bData && bData.length > 0) {
+        const bIds = bData.map(b => b.id);
+        const { data: commentsRes } = await supabase
+          .from('blasts')
+          .select('id, reply_to')
+          .in('reply_to', bIds);
+        
+        const commentCountMap = {};
+        (commentsRes || []).forEach(c => {
+          commentCountMap[c.reply_to] = (commentCountMap[c.reply_to] || 0) + 1;
+        });
+
+        setBlasts((bData || []).map(b => ({
+          ...b,
+          commentsCount: commentCountMap[b.id] || 0
+        })));
+      } else {
+        setBlasts([]);
+      }
+
+      // Fetch blasts liked by this user
+      const { data: likesRes } = await supabase
+        .from('likes')
+        .select('blast_id')
+        .eq('user_id', profileData.id);
+      
+      if (likesRes && likesRes.length > 0) {
+        const likedIds = likesRes.map(l => l.blast_id);
+        const { data: lData } = await supabase
+          .from('blasts')
+          .select(`
+            *,
+            likes (id, user_id),
+            reposts (id, user_id),
+            profiles:user_id (id, username, full_name, avatar_url, talent, is_verified)
+          `)
+          .in('id', likedIds)
+          .order('created_at', { ascending: false });
+
+        if (lData && lData.length > 0) {
+          const lIds = lData.map(b => b.id);
+          const { data: lCommentsRes } = await supabase
+            .from('blasts')
+            .select('id, reply_to')
+            .in('reply_to', lIds);
+          
+          const lCommentCountMap = {};
+          (lCommentsRes || []).forEach(c => {
+            lCommentCountMap[c.reply_to] = (lCommentCountMap[c.reply_to] || 0) + 1;
+          });
+
+          setLikedBlasts(lData.map(b => ({
+            ...b,
+            commentsCount: lCommentCountMap[b.id] || 0
+          })));
+        } else {
+          setLikedBlasts([]);
+        }
+      } else {
+        setLikedBlasts([]);
+      }
     } catch (err) { 
       console.error(err); 
       setLoading(false); 
@@ -149,6 +213,58 @@ export default function ProfileClient() {
     }
   };
 
+  const handleLike = async (e, blastId) => {
+    e.stopPropagation();
+    if (!currentUser) { router.push('/login'); return; }
+    const target = blasts.find(b => b.id === blastId) || likedBlasts.find(b => b.id === blastId);
+    if (!target) return;
+    const isLiked = target.likes?.some(l => l.user_id === currentUser.id);
+    const fakeId = 'opt_' + Date.now();
+    const updateBlast = (b) => {
+      if (b.id !== blastId) return b;
+      return {
+        ...b,
+        likes: isLiked 
+          ? (b.likes || []).filter(l => l.user_id !== currentUser.id)
+          : [...(b.likes || []), { id: fakeId, blast_id: blastId, user_id: currentUser.id }]
+      };
+    };
+    setBlasts(prev => prev.map(updateBlast));
+    setLikedBlasts(prev => prev.map(updateBlast));
+    if (isLiked) {
+      await supabase.from('likes').delete().eq('blast_id', blastId).eq('user_id', currentUser.id);
+    } else {
+      await supabase.from('likes').insert([{ blast_id: blastId, user_id: currentUser.id }]);
+    }
+    fetchProfile();
+  };
+
+  const handleRepost = async (e, blastId) => {
+    e.stopPropagation();
+    if (!currentUser) { router.push('/login'); return; }
+    const target = blasts.find(b => b.id === blastId) || likedBlasts.find(b => b.id === blastId);
+    if (!target) return;
+    const isReposted = target.reposts?.some(r => r.user_id === currentUser.id);
+    const fakeId = 'opt_' + Date.now();
+    const updateBlast = (b) => {
+      if (b.id !== blastId) return b;
+      return {
+        ...b,
+        reposts: isReposted
+          ? (b.reposts || []).filter(r => r.user_id !== currentUser.id)
+          : [...(b.reposts || []), { id: fakeId, blast_id: blastId, user_id: currentUser.id }]
+      };
+    };
+    setBlasts(prev => prev.map(updateBlast));
+    setLikedBlasts(prev => prev.map(updateBlast));
+    if (isReposted) {
+      await supabase.from('reposts').delete().eq('blast_id', blastId).eq('user_id', currentUser.id);
+    } else {
+      await supabase.from('reposts').insert([{ blast_id: blastId, user_id: currentUser.id }]);
+    }
+    fetchProfile();
+  };
+
   const isOwnProfile = currentUser && profile && currentUser.id === profile.id;
   const Avatar = ({ src, size = 40, style = {} }) => src
     ? <img src={src} alt="avatar" style={{ width: size, height: size, borderRadius: '50%', objectFit: 'cover', flexShrink: 0, ...style }} />
@@ -172,6 +288,22 @@ export default function ProfileClient() {
     </div>
   );
   if (!profile) return <div style={{ background:'#fff', minHeight:'100dvh', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:'16px' }}><div style={{ fontSize:'2rem', fontWeight:'900' }}>This account doesn't exist</div><Link href="/" style={{ color:'#1d9bf0', textDecoration:'none', fontWeight:'700' }}>← Go Home</Link></div>;
+
+  const getVisibleBlasts = () => {
+    switch (activeTab) {
+      case 'replies':
+        return blasts.filter(b => b.reply_to);
+      case 'media':
+        return blasts.filter(b => b.media_url);
+      case 'likes':
+        return likedBlasts;
+      case 'posts':
+      default:
+        return blasts.filter(b => !b.reply_to);
+    }
+  };
+
+  const visibleBlasts = getVisibleBlasts();
 
   return (
     <div className="layout">
@@ -214,36 +346,50 @@ export default function ProfileClient() {
           ))}
         </div>
 
-        {blasts.length === 0
-          ? <div style={{ padding:'48px 16px', textAlign:'center', color:'#536471' }}>No posts yet</div>
-          : blasts.map(blast => (
-            <div key={blast.id} onClick={() => router.push(`/${profile.username}/status/${blast.id}`)}
-              style={{ padding:'14px 16px', borderBottom:'1px solid #eff3f4', display:'flex', gap:'12px', cursor:'pointer' }}>
-              <Avatar src={profile.avatar_url} size={42} />
-              <div style={{ flex:1 }}>
-                <div style={{ fontWeight:'800', color:'#0f1419', marginBottom:'4px' }}>{profile.full_name} <span style={{ color:'#536471', fontWeight:'400' }}>@{profile.username} · {new Date(blast.created_at).toLocaleDateString()}</span></div>
-                <div style={{ color:'#0f1419', lineHeight:1.5 }}>{blast.content}</div>
-                <div style={{ display:'flex', gap:'28px', color:'#71767b', marginTop:'12px', fontSize:'0.82rem', alignItems:'center' }}>
-                  <span style={{ display:'flex', alignItems:'center', gap:'6px', cursor:'pointer' }}>
-                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-                    <span>0</span>
-                  </span>
-                  <span style={{ display:'flex', alignItems:'center', gap:'6px', cursor:'pointer' }}>
-                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>
-                    <span>{blast.reposts?.length||0}</span>
-                  </span>
-                  <span style={{ display:'flex', alignItems:'center', gap:'6px', cursor:'pointer' }}>
-                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
-                    <span>{blast.likes?.length||0}</span>
-                  </span>
-                  <span style={{ display:'flex', alignItems:'center', gap:'6px' }}>
-                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
-                    <span>{blast.views_count||0}</span>
-                  </span>
+        {visibleBlasts.length === 0
+          ? <div style={{ padding:'48px 16px', textAlign:'center', color:'#536471' }}>No {activeTab} yet</div>
+          : visibleBlasts.map(blast => {
+              const author = activeTab === 'likes' ? (blast.profiles || profile) : profile;
+              return (
+                <div key={blast.id} onClick={() => router.push(`/status?id=${blast.id}`)}
+                  style={{ padding:'14px 16px', borderBottom:'1px solid #eff3f4', display:'flex', gap:'12px', cursor:'pointer' }}>
+                  <Avatar src={author.avatar_url} size={42} />
+                  <div style={{ flex:1 }}>
+                    <div style={{ fontWeight:'800', color:'#0f1419', marginBottom:'4px' }}>
+                      {author.full_name} <VerificationBadge course={author.talent} isVerified={author.is_verified} />
+                      <span style={{ color:'#536471', fontWeight:'400', marginLeft:'4px' }}>@{author.username} · {new Date(blast.created_at).toLocaleDateString()}</span>
+                    </div>
+                    <div style={{ color:'#0f1419', lineHeight:1.5 }}>{blast.content}</div>
+                    {blast.media_url && (
+                      <div style={{ marginTop:'10px', borderRadius:'12px', overflow:'hidden', border:'1px solid #eff3f4', maxWidth:'100%' }}>
+                        {blast.media_type === 'video' 
+                          ? <video src={blast.media_url} controls playsInline style={{ width:'100%', maxHeight:'240px', objectFit:'cover' }} /> 
+                          : <img src={blast.media_url} alt="media" style={{ width:'100%', maxHeight:'240px', objectFit:'cover' }} />
+                        }
+                      </div>
+                    )}
+                    <div style={{ display:'flex', gap:'28px', color:'#71767b', marginTop:'12px', fontSize:'0.82rem', alignItems:'center' }}>
+                      <span onClick={(e) => { e.stopPropagation(); router.push(`/status?id=${blast.id}`); }} style={{ display:'flex', alignItems:'center', gap:'6px', cursor:'pointer' }}>
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                        <span>{blast.commentsCount||0}</span>
+                      </span>
+                      <span onClick={(e) => handleRepost(e, blast.id)} style={{ display:'flex', alignItems:'center', gap:'6px', cursor:'pointer', color: blast.reposts?.some(r=>r.user_id===currentUser?.id)?'#00ba7c':'' }}>
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>
+                        <span>{blast.reposts?.length||0}</span>
+                      </span>
+                      <span onClick={(e) => handleLike(e, blast.id)} style={{ display:'flex', alignItems:'center', gap:'6px', cursor:'pointer', color: blast.likes?.some(l=>l.user_id===currentUser?.id)?'#f91880':'' }}>
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill={blast.likes?.some(l=>l.user_id===currentUser?.id)?'currentColor':'none'} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+                        <span>{blast.likes?.length||0}</span>
+                      </span>
+                      <span style={{ display:'flex', alignItems:'center', gap:'6px' }}>
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                        <span>{blast.views_count||0}</span>
+                      </span>
+                    </div>
+                  </div>
                 </div>
-              </div>
-            </div>
-          ))
+              );
+            })
         }
       </main>
 

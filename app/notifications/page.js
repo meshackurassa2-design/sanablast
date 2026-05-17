@@ -244,11 +244,11 @@ export default function NotificationsPage() {
             {filtered.map(item => {
               const handleCardClick = () => {
                 if (item.type === 'follow') {
-                  router.push(`/${item.actor.username}`);
+                  router.push(`/profile?username=${item.actor.username}`);
                 } else if (item.type === 'reply') {
-                  router.push(`/${user?.user_metadata?.username || 'user'}/status/${item.parent_blast_id}`);
+                  router.push(`/status?id=${item.parent_blast_id}&username=${user?.user_metadata?.username || 'user'}`);
                 } else {
-                  router.push(`/${user?.user_metadata?.username || 'user'}/status/${item.target_id}`);
+                  router.push(`/status?id=${item.target_id}&username=${user?.user_metadata?.username || 'user'}`);
                 }
               };
 
@@ -286,7 +286,7 @@ export default function NotificationsPage() {
                         size={32} 
                         onClick={(e) => {
                           e.stopPropagation();
-                          router.push(`/${item.actor.username}`);
+                          router.push(`/profile?username=${item.actor.username}`);
                         }}
                       />
                     </div>
@@ -295,7 +295,7 @@ export default function NotificationsPage() {
                       <span 
                         onClick={(e) => {
                           e.stopPropagation();
-                          router.push(`/${item.actor.username}`);
+                          router.push(`/profile?username=${item.actor.username}`);
                         }}
                         style={{ fontWeight: '800', cursor: 'pointer', display: 'inline-flex', alignItems: 'center' }}
                       >

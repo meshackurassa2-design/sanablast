@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import Sidebar from '@/components/Sidebar';
 import MobileNav from '@/components/MobileNav';
@@ -10,8 +10,11 @@ import Link from 'next/link';
 import { FeedSkeleton } from '@/components/Loaders';
 
 export default function StatusClient() {
-  const { username, id } = useParams();
+  const params = useParams() || {};
+  const searchParams = useSearchParams();
   const router = useRouter();
+  const username = params.username || searchParams.get('username') || 'user';
+  const id = params.id || searchParams.get('id');
   const [blast, setBlast] = useState(null);
   const [replies, setReplies] = useState([]);
   const [user, setUser] = useState(null);
@@ -135,7 +138,7 @@ export default function StatusClient() {
 
         <div style={{ padding:'16px' }}>
           <div style={{ display:'flex', gap:'12px', marginBottom:'16px' }}>
-            <Avatar src={authorAvatar} name={authorName} size={44} onClick={() => router.push(`/${authorHandle}`)} />
+            <Avatar src={authorAvatar} name={authorName} size={44} onClick={() => router.push(`/profile?username=${authorHandle}`)} />
             <div>
               <div style={{ fontWeight:'800', fontSize:'1rem', display:'flex', alignItems:'center', gap:'4px', color:'#0f1419' }}>
                 {authorName} <VerificationBadge isVerified={blast.profiles?.is_verified} />
@@ -177,8 +180,8 @@ export default function StatusClient() {
           const rHandle = reply.profiles?.username || (reply.user_id===user?.id ? currentUserHandle : 'user');
           const rAvatar = reply.profiles?.avatar_url || (reply.user_id===user?.id ? avatarUrl : null);
           return (
-            <div key={reply.id} className="blast-card" onClick={() => router.push(`/${rHandle}/status/${reply.id}`)}>
-              <Avatar src={rAvatar} name={rName} size={40} onClick={(e) => { e.stopPropagation(); router.push(`/${rHandle}`); }} />
+            <div key={reply.id} className="blast-card" onClick={() => router.push(`/status?id=${reply.id}&username=${rHandle}`)}>
+              <Avatar src={rAvatar} name={rName} size={40} onClick={(e) => { e.stopPropagation(); router.push(`/profile?username=${rHandle}`); }} />
               <div className="blast-body">
                 <div className="blast-user">
                   <span className="name">{rName}</span>
