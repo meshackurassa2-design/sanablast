@@ -57,12 +57,14 @@ jobs:
 
       - name: Build unsigned IPA
         run: |
-          XCPROJ=$(find ios -name "*.xcodeproj" | head -1)
-          SCHEME=$(basename "$XCPROJ" .xcodeproj)
-          echo "Project: $XCPROJ | Scheme: $SCHEME"
+          # CocoaPods requires building via .xcworkspace, not .xcodeproj
+          XCWORKSPACE=$(find ios -name "*.xcworkspace" | grep -v "xcodeproj" | head -1)
+          SCHEME="App"
+          echo "Workspace: $XCWORKSPACE | Scheme: $SCHEME"
+          ls ios/App/
 
           xcodebuild \
-            -project "$XCPROJ" \
+            -workspace "$XCWORKSPACE" \
             -scheme "$SCHEME" \
             -configuration Release \
             -sdk iphoneos \
@@ -70,9 +72,11 @@ jobs:
             CODE_SIGN_IDENTITY="" \
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGN_ENTITLEMENTS="" \
             DEVELOPMENT_TEAM="" \
+            IPHONEOS_DEPLOYMENT_TARGET=16.0 \
             CONFIGURATION_BUILD_DIR="$(pwd)/build" \
-            clean build
+            clean build 2>&1 | grep -E "error:|warning:|BUILD|note:" | tail -50
 
       - name: Package IPA
         run: |
