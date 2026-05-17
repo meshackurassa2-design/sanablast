@@ -32,6 +32,9 @@ jobs:
       - name: Capacitor - add iOS (allow pod install to fail)
         run: npx cap add ios || true
 
+      - name: Generate Native Assets (Icons & Splash Screen)
+        run: npx @capacitor/assets generate --ios
+
       - name: Fix Podfile iOS minimum deployment target
         run: |
           PODFILE="ios/App/Podfile"

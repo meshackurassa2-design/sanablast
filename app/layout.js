@@ -1,6 +1,7 @@
 import "./globals.css";
 import GlobalCompose from "@/components/GlobalCompose";
 import RequireAuth from "@/components/RequireAuth";
+import SplashScreen from "@/components/SplashScreen";
 
 export const viewport = {
   width: 'device-width',
@@ -27,6 +28,7 @@ export default function RootLayout({ children }) {
         ` }} />
       </head>
       <body style={{ backgroundColor: '#ffffff', margin: 0, padding: 0 }}>
+        <SplashScreen />
         <RequireAuth>
           {children}
           <GlobalCompose />
