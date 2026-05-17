@@ -29,25 +29,31 @@ jobs:
           NEXT_PUBLIC_SUPABASE_URL: https://xhegpgkyivzzdrqjwzoz.supabase.co
           NEXT_PUBLIC_SUPABASE_ANON_KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhoZWdwZ2t5aXZ6emRycWp3em96Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg4NzMyOTksImV4cCI6MjA5NDQ0OTI5OX0.WGYsGA4_vXrRP_Cl5oLrd2dZ5hcppOQVUszh0KvwW10
 
-      - name: Capacitor - add iOS platform
-        run: npx cap add ios
+      - name: Capacitor - add iOS (allow pod install to fail)
+        run: npx cap add ios || true
 
       - name: Fix Podfile iOS minimum deployment target
         run: |
           PODFILE="ios/App/Podfile"
-          echo "Before fix:"
-          grep -i "platform" "$PODFILE" || true
+          echo "=== Podfile before ==="
+          cat "$PODFILE" | head -10
           # Capacitor 7.x requires iOS 16.0+
-          sed -i '' "s/platform :ios, '[0-9.]*/platform :ios, '16.0/g" "$PODFILE"
-          # If no platform line exists, add it
-          if ! grep -q "platform :ios" "$PODFILE"; then
-            sed -i '' '1s/^/platform :ios, '"'"'16.0'"'"'\n/' "$PODFILE"
+          sed -i '' "s/platform :ios, '[0-9.]*'/platform :ios, '16.0'/g" "$PODFILE"
+          # If still not set, force prepend
+          if ! grep -q "platform :ios, '16.0'" "$PODFILE"; then
+            echo "platform :ios, '16.0'" | cat - "$PODFILE" > /tmp/Podfile.tmp && mv /tmp/Podfile.tmp "$PODFILE"
           fi
-          echo "After fix:"
-          grep -i "platform" "$PODFILE" || true
+          echo "=== Podfile after ==="
+          cat "$PODFILE" | head -10
 
-      - name: Sync Capacitor iOS
-        run: npx cap sync ios
+      - name: Run pod install with correct target
+        run: |
+          cd ios/App
+          pod install --repo-update
+
+      - name: Copy web assets to iOS
+        run: npx cap copy ios
+
 
       - name: Build unsigned IPA
         run: |
