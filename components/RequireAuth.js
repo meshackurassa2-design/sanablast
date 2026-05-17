@@ -8,9 +8,11 @@ export default function RequireAuth({ children }) {
   const [loading, setLoading] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const pathname = usePathname();
+  const normalizedPath = pathname ? pathname.replace(/\/$/, '') : '';
+  const isLoginPage = normalizedPath === '/login';
 
   useEffect(() => {
-    if (pathname === '/login') {
+    if (isLoginPage) {
       setLoading(false);
       setIsAuthenticated(true);
       return;
@@ -41,19 +43,14 @@ export default function RequireAuth({ children }) {
       clearTimeout(timeout);
       subscription.unsubscribe();
     };
-  }, [pathname]);
+  }, [pathname, isLoginPage]);
 
-  if (loading && pathname !== '/login') {
+  if (loading && !isLoginPage) {
     return (
       <div style={{ minHeight: '100dvh', background: '#ffffff', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
-        <svg width="60" height="60" viewBox="0 0 24 24" fill="#1d9bf0" style={{ marginBottom: '20px', animation: 'pulse 1.5s infinite' }}>
-          <path d="M3 7h11l-1.5 4H6l-1.5 4h7.5l-1.5 4H2l1.5-4h4l1.5-4H3.5L5 7z" />
-          <path d="M13 7h9l-1.5 4h-5l-1.5 4h5l-1.5 4h-5l-1.5 4h9L21 19l-1.5-4h5L22 11l-1.5-4z" />
-        </svg>
-        <style>{`@keyframes pulse { 0% { opacity: 0.6; transform: scale(0.98); } 50% { opacity: 1; transform: scale(1); } 100% { opacity: 0.6; transform: scale(0.98); } }`}</style>
       </div>
     );
   }
 
-  return isAuthenticated || pathname === '/login' ? children : null;
+  return isAuthenticated || isLoginPage ? children : null;
 }

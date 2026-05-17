@@ -14,15 +14,15 @@ export default function RootLayout({ children }) {
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;800;900&display=swap" rel="stylesheet" />
+        <style dangerouslySetInnerHTML={{ __html: `
+          body { background-color: #ffffff !important; }
+        ` }} />
       </head>
       <body style={{ backgroundColor: '#ffffff', margin: 0, padding: 0 }}>
         <RequireAuth>
           {children}
           <GlobalCompose />
         </RequireAuth>
-        <style dangerouslySetInnerHTML={{ __html: `
-          body { background-color: #ffffff !important; }
-        ` }} />
       </body>
     </html>
   );

@@ -4,13 +4,6 @@ import { supabase } from '@/lib/supabase';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 
-const SBLogo = () => (
-  <svg width="40" height="40" viewBox="0 0 24 24" fill="currentColor">
-    <path d="M13.354 11.727l6.747-7.727h-1.601l-5.856 6.705L7.963 4H2.555l7.089 10.315-7.089 8.114h1.601l6.198-7.098 5.088 7.098h5.408L13.354 11.727zM11.161 19.52H9.328l-4.786-15.394h1.967L11.161 19.52z" style={{ opacity: 0.1 }} />
-    <path d="M4 2h10l-1.5 4H6l-1.5 4h6.5l-1.5 4H2l1.5-4h3.5l1.5-4H2.5L4 6z" />
-    <path d="M14 6h8l-1.5 4h-4l-1.5 4h4l-1.5 4h-4l-1.5 4h8L22 18l-1.5-4h4L23 10l-1.5-4z" />
-  </svg>
-);
 
 export default function LoginPage() {
   const [isSignUp, setIsSignUp] = useState(false);
@@ -89,7 +82,6 @@ export default function LoginPage() {
   return (
     <div className="login-container">
       <div className="auth-box">
-        <div className="logo-sb" style={{ textAlign: 'center', marginBottom: '30px' }}><SBLogo /></div>
         <h2 style={{ fontSize: '2rem', marginBottom: '30px', textAlign: 'center', fontWeight: '800' }}>
           {isSignUp ? 'Join Sanaa Blast today' : 'Sign in to Sanaa Blast'}
         </h2>
