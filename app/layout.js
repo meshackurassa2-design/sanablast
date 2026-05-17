@@ -1,5 +1,6 @@
 import "./globals.css";
 import GlobalCompose from "@/components/GlobalCompose";
+import RequireAuth from "@/components/RequireAuth";
 
 export const metadata = {
   title: "Sanaa Blast UDSM | The Creative Explosion",
@@ -15,8 +16,10 @@ export default function RootLayout({ children }) {
         <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;800;900&display=swap" rel="stylesheet" />
       </head>
       <body style={{ backgroundColor: '#ffffff', margin: 0, padding: 0 }}>
-        {children}
-        <GlobalCompose />
+        <RequireAuth>
+          {children}
+          <GlobalCompose />
+        </RequireAuth>
         <style dangerouslySetInnerHTML={{ __html: `
           body { background-color: #ffffff !important; }
         ` }} />
