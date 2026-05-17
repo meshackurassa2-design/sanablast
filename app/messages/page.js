@@ -100,7 +100,7 @@ export default function MessagesPage() {
 
     // Fetch all other users' profiles
     const otherIds = deduped.map(d => d.otherId);
-    const { data: profiles } = await supabase.from('profiles').select('id, username, full_name, avatar_url, talent, is_verified').in('id', otherIds);
+    const { data: profiles } = await supabase.from('profiles').select('id, username, full_name, avatar_url').in('id', otherIds);
     const profMap = {};
     (profiles || []).forEach(p => { profMap[p.id] = p; });
 
@@ -123,7 +123,7 @@ export default function MessagesPage() {
     const q = e.target.value;
     setSearchQ(q);
     if (q.length < 2) { setResults([]); return; }
-    const { data } = await supabase.from('profiles').select('id, username, full_name, avatar_url, talent, is_verified').ilike('username', `%${q}%`).neq('id', user.id).limit(10);
+    const { data } = await supabase.from('profiles').select('id, username, full_name, avatar_url').ilike('username', `%${q}%`).neq('id', user.id).limit(10);
     setResults(data || []);
   };
 
@@ -177,7 +177,6 @@ export default function MessagesPage() {
               <Avatar user={chatUser} size={36} />
               <span style={{ fontWeight: 800, color: '#0f1419', display: 'flex', alignItems: 'center', fontSize: '1.05rem' }}>
                 {chatUser.full_name || chatUser.username}
-                <VerificationBadge talent={chatUser.talent} isVerified={chatUser.is_verified} />
               </span>
             </>
           ) : (
@@ -220,7 +219,6 @@ export default function MessagesPage() {
                   <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                     <span style={{ fontWeight: 800, color: '#0f1419', display: 'flex', alignItems: 'center', fontSize: '0.95rem' }}>
                       {otherUser.full_name || otherUser.username}
-                      <VerificationBadge talent={otherUser.talent} isVerified={otherUser.is_verified} />
                     </span>
                     <span style={{ color: '#536471', fontSize: '0.8rem', flexShrink: 0, marginLeft: '6px' }}>
                       {new Date(lastMsg.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
@@ -255,7 +253,7 @@ export default function MessagesPage() {
                 <Avatar user={r} size={46} />
                 <div>
                   <div style={{ fontWeight: 700, color: '#0f1419', display: 'flex', alignItems: 'center' }}>
-                    {r.full_name || r.username}<VerificationBadge talent={r.talent} isVerified={r.is_verified} />
+                    {r.full_name || r.username}
                   </div>
                   <div style={{ color: '#536471', fontSize: '0.9rem' }}>@{r.username}</div>
                 </div>
