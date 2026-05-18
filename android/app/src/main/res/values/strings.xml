@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Sanaa Blast</string>
+    <string name="title_activity_main">Sanaa Blast</string>
+    <string name="package_name">com.sanaa.blast</string>
+    <string name="custom_url_scheme">com.sanaa.blast</string>
+</resources>
