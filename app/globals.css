@@ -552,9 +552,23 @@ html, body {
 }
 
 @media (max-width: 600px) {
-  .layout { grid-template-columns: 1fr; }
+  html, body {
+    height: auto !important;
+    overflow: auto !important;
+    overflow-x: hidden !important;
+  }
+  .layout {
+    grid-template-columns: 1fr;
+    height: auto !important;
+    overflow: visible !important;
+  }
   .sidebar { display: none; }
-  .feed { border-right: none; padding-bottom: 70px; }
+  .feed {
+    border-right: none;
+    padding-bottom: calc(env(safe-area-inset-bottom, 20px) + 80px) !important;
+    height: auto !important;
+    overflow: visible !important;
+  }
   .feed-header h2 { display: none; }
   .mobile-header { display: flex; }
   .mobile-nav { display: flex; }
