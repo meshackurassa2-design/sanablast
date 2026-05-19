@@ -30,7 +30,7 @@ jobs:
           NEXT_PUBLIC_SUPABASE_ANON_KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhoZWdwZ2t5aXZ6emRycWp3em96Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg4NzMyOTksImV4cCI6MjA5NDQ0OTI5OX0.WGYsGA4_vXrRP_Cl5oLrd2dZ5hcppOQVUszh0KvwW10
 
       - name: Capacitor - add iOS (allow pod install to fail)
-        run: npx cap add ios || true
+        run: npx cap add ios --packagemanager CocoaPods || true
 
       - name: Generate Native Assets (Icons & Splash Screen)
         run: npx @capacitor/assets generate --ios
